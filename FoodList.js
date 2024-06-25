@@ -1,3 +1,4 @@
+import storage from './Storage';
 import SearchBar from './SearchBar';
 import React, { useState, useEffect, useRef } from 'react'
 import { Dropdown } from 'react-native-element-dropdown';
@@ -70,119 +71,128 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   useEffect(() => {
     const loadFoodItems = async () => {
       try {
-        const storedItems = await AsyncStorage.getItem('foodItems');
-        if (storedItems && JSON.parse(storedItems).length > 0) {
-          setFilteredFoodItems(JSON.parse(storedItems));
+        const storedItems = await storage.load({
+          key: 'foodItems',
+        });
+
+        if (storedItems && storedItems.length > 0) {
+          setFilteredFoodItems(storedItems);
+          setColoredCategories(storedItems);
         } else {
           // If no stored items, initialize with your default data
-          setFilteredFoodItems([ 
-            {
-      category: 'Food',
-      items: 
-      [
-        'Hot Dog',
-        'Sausage',
-        'Bread',
-          { 'Pretzel': ['Regular', 'Cheese'] },
-        'Churros',
-      ]
-    },
-    {
-      category: 'Beverages',
-      items: 
-      [
-        'Water',
-        'Small Water',
-        {'Gatorade': ['Red', 'Lime', 'Orange', 'Blue']}, 
-        {'Soda':['Coke','Diet Coke', 'Sprite', 'Lemonade', 'Fanta','Pepsi', 'Coke Zero', 'Diet Pepsi']},
-        {'Snapple':['Peach','Lemon','Kiwi', 'Diet Peach','Diet Lemon']},
-        'Red Bull',
-        'Sparkling Water',
-          'Vitamin Water',
-      ]
-    },
-    {
-      category: 'Ice Cream',
-      items: 
-      [
-        'Oreo Bar',
-        'Klondike',
-          'Strawberry Shortcake',
-          'Vanilla Bar',
-          'Giant Sandwich',
-          'Cookie Sandwich',
-          'Choc Éclair',
-          'King Kone',
-          'Birthday Cake',
-          'Original',
-          { 'Magnum': ['2x Choc', 'Almond', 'Caramel', 'Peanut B.'] },
-          'Häagen-Dazs',
-      ]
-    },
-    {
-      category: 'Frozen Ice Cream',
-      items: 
-      [
-          'Spiderman',
-          'Spongebob',
-          'Spacejam',
-          'Sonic',
-          'Snowcone',
-          {'Minute Maid': ['Lemon','Strawberry']}
-      ]
-    },
-    {
-      category: 'Nuts',
-      items: 
-      [
-        'Peanuts',
-          'Cashews',
-          'Almonds',
-          'Pecans'
-      ]
-    },
-    {
-      category: 'Miscellaneous',
-      items: 
-        [
-        {'Food': ['Onions','Sauerkraut','Mustard','Ketchup']},
-          'Sterno',
-          'Napkins',
-          'Roll Towels',
-          'Gloves',
-          'Straws',
-          'Foil',
-          'Spoons',
-          'Sugar',
-          'Vanillin',
-          {'Bags': ['Garbage Bags','White Bags','Brown Bags','Black Bags']}      
-      ]
-    },
-          ]);
+          initializeFoodItems();
         }
-        const coloredItems = filteredFoodItems.map((category) => ({
-          ...category,
-          color: getColor()
-        }))
-        setFilteredFoodItems(coloredItems);
-        setColoredCategories(coloredItems);
       } catch (error) {
-        console.error("Error loading food items:", error);
+        // Handle error loading items, e.g., if the key doesn't exist yet
+        console.error('Error loading food items:', error);
+        initializeFoodItems(); 
+      } finally {
+        setIsLoading(false);
       }
     };
+
+    const initializeFoodItems = () => {
+      setFilteredFoodItems([
+        {
+          "category": "Food",
+          "items": [
+            "Hot Dog",
+            "Sausage",
+            "Bread",
+            { "Pretzel": ["Regular", "Cheese"] },
+            "Churros"
+          ],
+          "color": "#000000"
+        },
+        {
+          "category": "Beverages",
+          "items": [
+            "Water",
+            "Small Water",
+            { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
+            { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
+            { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
+            "Red Bull",
+            "Sparkling Water",
+            "Vitamin Water"
+          ],
+          "color": "#000000"
+        },
+        {
+          "category": "Ice Cream",
+          "items": [
+            "Oreo Bar",
+            "Klondike",
+            "Strawberry Shortcake",
+            "Vanilla Bar",
+            "Giant Sandwich",
+            "Cookie Sandwich",
+            "Choc Éclair",
+            "King Kone",
+            "Birthday Cake",
+            "Original",
+            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B."] },
+            "Häagen-Dazs"
+          ],
+          "color": "#000000"
+        },
+        {
+          "category": "Frozen Ice Cream",
+          "items": [
+            "Spiderman",
+            "Spongebob",
+            "Spacejam",
+            "Sonic",
+            "Snowcone",
+            { "Minute Maid": ["Lemon", "Strawberry"] }
+          ],
+          "color": "#000000"
+        },
+        {
+          "category": "Nuts",
+          "items": ["Peanuts", "Cashews", "Almonds", "Pecans"],
+          "color": "#000000"
+        },
+        {
+          "category": "Miscellaneous",
+          "items": [
+            { "Food": ["Onions", "Sauerkraut", "Mustard", "Ketchup"] },
+            "Sterno",
+            "Napkins",
+            "Roll Towels",
+            "Gloves",
+            "Straws",
+            "Foil",
+            "Spoons",
+            "Sugar",
+            "Vanillin",
+            { "Bags": ["Garbage Bags", "White Bags", "Brown Bags", "Black Bags"] }
+          ],
+          "color": "#000000"
+        }
+      ].map((category) => ({
+        ...category,
+        color: getColor(), 
+      })));
+    };
+
     loadFoodItems();
   }, []);
 
   useEffect(() => {
     const saveFoodItems = async () => {
       try {
-        await AsyncStorage.setItem('foodItems', JSON.stringify(filteredFoodItems));
+        await storage.save({
+          key: 'foodItems', 
+          data: filteredFoodItems,
+          expires: null, 
+        });
       } catch (error) {
-        console.error("Error saving food items:", error);
+        console.error('Error saving food items:', error);
       }
     };
 
-    saveFoodItems(); 
+    saveFoodItems();
   }, [filteredFoodItems]);
   
 
@@ -393,7 +403,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     if (query.trim() === '') {
       // Reset to the full list
-      setFilteredFoodItems([...coloredCategories]); 
+      setFilteredFoodItems([...filteredFoodItems]); 
     } else {
       // Filtering logic (unchanged)
       const filteredItems = coloredCategories.map((category) => ({

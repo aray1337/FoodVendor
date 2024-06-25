@@ -1,0 +1,81 @@
+{
+    "foodItems": [
+      {
+        "category": "Food",
+        "items": [
+          "Hot Dog",
+          "Sausage",
+          "Bread",
+          { "Pretzel": ["Regular", "Cheese"] },
+          "Churros"
+        ],
+        "color": "#000000"
+      },
+      {
+        "category": "Beverages",
+        "items": [
+          "Water",
+          "Small Water",
+          { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
+          { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
+          { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
+          "Red Bull",
+          "Sparkling Water",
+          "Vitamin Water"
+        ],
+        "color": "#000000"
+      },
+      {
+        "category": "Ice Cream",
+        "items": [
+          "Oreo Bar",
+          "Klondike",
+          "Strawberry Shortcake",
+          "Vanilla Bar",
+          "Giant Sandwich",
+          "Cookie Sandwich",
+          "Choc Éclair",
+          "King Kone",
+          "Birthday Cake",
+          "Original",
+          { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B."] },
+          "Häagen-Dazs"
+        ],
+        "color": "#000000"
+      },
+      {
+        "category": "Frozen Ice Cream",
+        "items": [
+          "Spiderman",
+          "Spongebob",
+          "Spacejam",
+          "Sonic",
+          "Snowcone",
+          { "Minute Maid": ["Lemon", "Strawberry"] }
+        ],
+        "color": "#000000"
+      },
+      {
+        "category": "Nuts",
+        "items": ["Peanuts", "Cashews", "Almonds", "Pecans"],
+        "color": "#000000"
+      },
+      {
+        "category": "Miscellaneous",
+        "items": [
+          { "Food": ["Onions", "Sauerkraut", "Mustard", "Ketchup"] },
+          "Sterno",
+          "Napkins",
+          "Roll Towels",
+          "Gloves",
+          "Straws",
+          "Foil",
+          "Spoons",
+          "Sugar",
+          "Vanillin",
+          { "Bags": ["Garbage Bags", "White Bags", "Brown Bags", "Black Bags"] }
+        ],
+        "color": "#000000"
+      }
+    ] 
+  }
