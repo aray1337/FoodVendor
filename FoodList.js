@@ -51,6 +51,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const [showFormattedList, setShowFormattedList] = useState(false);
   const [coloredCategories, setColoredCategories] = useState([]);
   const inputRef = useRef(null)
+  const editInputRef = useRef(null)
   const [searchHistory, setSearchHistory] = useState([]);
   const [isListDirty, setIsListDirty] = useState(true); 
   const [searchQuery, setSearchQuery] = useState('');
@@ -180,24 +181,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   }, []);
 
   useEffect(() => {
-    const saveFoodItems = async () => {
-      try {
-        await storage.save({
-          key: 'foodItems', 
-          data: filteredFoodItems,
-          expires: null, 
-        });
-      } catch (error) {
-        console.error('Error saving food items:', error);
-      }
-    };
-
-    saveFoodItems();
-  }, [filteredFoodItems]);
-  
-
-
-  useEffect(() => {
     if (isListDirty) { 
       formatFoodList();
       setIsListDirty(false); // Reset the flag after updating
@@ -235,10 +218,13 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   };
 
   const handleLongPressItem = (item) => {
-    setEditingItem(item);
-    setEditedItemName(typeof item === 'object' ? Object.keys(item)[0] : item);
-    setEditModalVisible(true);
+      setEditingItem(item);
+      setEditedItemName(item);
+      setEditModalVisible(true);
   };
+  
+  
+  
 
   const handleSaveEdit = () => {
     if (editedItemName.trim() !== '') {
@@ -280,12 +266,39 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         }),
       };
     });
-    setFilteredFoodItems(updatedFoodItems);
+
+    // **AsyncStorage Logic**
+    storage.save({
+      key: 'foodItems',
+      data: updatedFoodItems,
+      expires: null,
+    }).then(() => {
+      setFilteredFoodItems(updatedFoodItems);
+      console.log('Food items saved to AsyncStorage after deletion');
+    }).catch(error => {
+      console.error('Error saving food items to AsyncStorage after deletion:', error);
+    });
+
     setEditingItem(null);
     setEditModalVisible(false);
   };
 
+  const handleChangeEditInput = (text) => {
+    setEditedItemName(text);
+  };
+
+
   const EditModal = () => {
+    useEffect(() => {
+      // Show the keyboard when the modal becomes visible
+      if (editModalVisible) {
+        setTimeout(() => { // Use setTimeout to ensure TextInput is rendered
+          editInputRef.current.focus(); // This will automatically open the keyboard
+        }, 100); 
+      }
+    }, [editModalVisible]);
+ // State for edited item name
+
     return (
       <Modal
         animationType="fade"
@@ -297,23 +310,23 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
           onPress={() => setEditModalVisible(false)}
         >
         <View style={styles.centeredView}>
-          <View style={styles.modalView}>
+          <View style={styles.editModalView}>
             <Text style={styles.modalText}>Edit Item</Text>
             <TextInput
               style={styles.EditInput}
               value={editedItemName}
-                onChangeText={setEditedItemName}
-                autoFocus={true}
+                onChangeText={handleChangeEditInput}
+              ref={editInputRef}
             />
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: 'green' }]} 
+                style={[styles.editButton]} 
                 onPress={handleSaveEdit}
               >
                 <Text style={styles.textStyle}>Save</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, { backgroundColor: 'red' }]} // Red button for delete
+                style={[styles.deleteButton]} // Red button for delete
                 onPress={handleDeleteItem}
               >
                 <Text style={styles.textStyle}>Delete</Text>
@@ -326,6 +339,71 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     );
   };
   
+  const itemExists = (arr, newItem) => {
+    try {
+      return arr.some(item => {
+        if (typeof item === 'string' && typeof newItem === 'string') {
+          return item === newItem;
+        } else if (typeof item === 'object' && typeof newItem === 'object') {
+          // Correctly compare objects in subcategories
+          const [[key1, values1]] = Object.entries(item);
+          const [[key2, values2]] = Object.entries(newItem);
+          return key1 === key2 && JSON.stringify(values1) === JSON.stringify(values2);
+        }
+        return false;
+      });
+    } catch (error) {
+      console.error('Error in itemExists:', error);
+      return false;
+    }
+  };
+
+  const addFoodItem = async (category, newItem) => {
+    console.log('Adding item:', newItem, 'to category:', category);
+
+    setFilteredFoodItems(prevItems => {
+      console.log('Previous foodItems:', prevItems);
+      const categoryIndex = prevItems.findIndex(item => item.category === category);
+      console.log('Category Index:', categoryIndex);
+
+      if (categoryIndex !== -1) {
+        if (!itemExists(prevItems[categoryIndex].items, newItem)) {
+          // *** CORRECT WAY TO UPDATE updatedItems ***
+          const updatedItems = [
+            ...prevItems.slice(0, categoryIndex), // Items before the category
+            { 
+              ...prevItems[categoryIndex], // Existing category data
+              items: [...prevItems[categoryIndex].items, newItem] // Add newItem to items
+            },
+            ...prevItems.slice(categoryIndex + 1) // Items after the category 
+          ];
+          // ****************************************
+
+          console.log('Updated foodItems:', updatedItems);
+
+          // **AsyncStorage Logic**
+          storage.save({
+            key: 'foodItems',
+            data: updatedItems,
+            expires: null,
+          }).then(() => {
+            setFilteredFoodItems(updatedItems);
+            console.log('Food items saved to AsyncStorage');
+          }).catch(error => {
+            console.error('Error saving food items to AsyncStorage:', error);
+          });
+
+          return updatedItems; 
+        } else { 
+          console.log('Item already exists:', newItem);
+        }
+      } else {
+        console.log('Category not found:', category);
+      }
+
+      return prevItems;
+    });
+  };
 
   const AddModal = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -343,7 +421,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   
     const handleAddItem = () => {
       if (newItemInput.trim() !== '') {
-        onAddItem(selectedCategory, newItemInput); 
+        addFoodItem(selectedCategory, newItemInput); 
         setNewItemInput('');
         setIsModalVisible(false); 
       }
@@ -403,7 +481,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     if (query.trim() === '') {
       // Reset to the full list
-      setFilteredFoodItems([...filteredFoodItems]); 
+      setFilteredFoodItems([...coloredCategories]); 
     } else {
       // Filtering logic (unchanged)
       const filteredItems = coloredCategories.map((category) => ({
@@ -457,7 +535,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                       setSelectedItem(brand !== 'Soda' ? `${subcategory} ${brand}` : `${subcategory}`);
                       setModalVisible(true);
                     }}
-                    onLongPress={() => handleLongPressItem(food)}
+                    onLongPress={() => handleLongPressItem(subcategory)}
                   >
                     <Text style={styles.item}>{subcategory}</Text>
                   </TouchableOpacity>
@@ -896,6 +974,24 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
     backgroundColor: '#2196F3'
   },
+  editButton: {
+    margin:7,
+    borderRadius: 5,
+    borderTopEndRadius: 20,
+    padding: 10,
+    elevation: 2,
+    marginHorizontal: 5,
+    backgroundColor: '#2196F3'
+  },
+  deleteButton: {
+    margin:7,
+    borderRadius: 5,
+    borderBottomStartRadius: 20,
+    padding: 10,
+    elevation: 2,
+    marginHorizontal: 5,
+    backgroundColor: '#ff5050'
+  },
   textStyle: {
     color: 'white',
     fontWeight: 'bold',
@@ -978,6 +1074,20 @@ const styles = StyleSheet.create({
   modalView: {
     backgroundColor: 'white',
     padding: 15,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  editModalView: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 7,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
