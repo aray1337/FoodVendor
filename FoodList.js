@@ -67,6 +67,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const [editingItem, setEditingItem] = useState(null);
   const [editedItemName, setEditedItemName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [listUpdateTrigger, setListUpdateTrigger] = useState(false); 
+  const flatListRef = useRef(null); // Reference to the FlatList
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+
+
 
 
   useEffect(() => {
@@ -215,6 +221,10 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     scrollTimer.current = setTimeout(() => {
       fadeInButtons();
     }, 500); // Adjust delay (in ms) before fade-in 
+  };
+
+  const handleMomentumScrollEnd = (event) => {
+    setScrollPosition(event.nativeEvent.contentOffset.y);
   };
 
   const handleLongPressItem = (item) => {
@@ -408,22 +418,50 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const AddModal = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [newItemInput, setNewItemInput] = useState('');
+    const [selectedSubcategory, setSelectedSubcategory] = useState(null); // State for selected subcategory
 
-    const hideAddModal = () => {
-      setIsModalVisible(false);
-    };
+
 
     useEffect(() => {
       if (filteredFoodItems && filteredFoodItems.length > 0) {
         setSelectedCategory(filteredFoodItems[0].category);
       }
     }, [filteredFoodItems]);
-  
+
     const handleAddItem = () => {
       if (newItemInput.trim() !== '') {
-        addFoodItem(selectedCategory, newItemInput); 
+        if (selectedSubcategory) {
+          // Adding a subcategory item
+          const categoryIndex = filteredFoodItems.findIndex(item => item.category === selectedCategory);
+          if (categoryIndex !== -1) {
+            setFilteredFoodItems(prevItems => {
+              const updatedItems = [...prevItems];
+              updatedItems[categoryIndex].items = updatedItems[categoryIndex].items.map(item => {
+                if (typeof item === 'object' && Object.keys(item)[0] === selectedSubcategory) {
+                  return { [selectedSubcategory]: [...Object.values(item)[0], newItemInput] };
+                }
+                return item;
+              });
+              storage.save({
+                key: 'foodItems',
+                data: updatedItems,
+                expires: null,
+              }).then(() => {
+                setFilteredFoodItems(updatedItems);
+                console.log('Food items saved to AsyncStorage');
+              }).catch(error => {
+                console.error('Error saving food items to AsyncStorage:', error);
+              });
+              return updatedItems;
+            });
+          }
+        } else {
+          // Adding a regular item
+          addFoodItem(selectedCategory, newItemInput);
+        }
         setNewItemInput('');
-        setIsModalVisible(false); 
+        setIsModalVisible(false);
+        setSelectedSubcategory(null); // Reset subcategory after adding
       }
     };
 
@@ -446,6 +484,23 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                   onChange={item => setSelectedCategory(item.value)}
                   style={styles.dropdown} 
                 />
+                {selectedCategory && (
+                  <Dropdown
+                    data={filteredFoodItems.find(item => item.category === selectedCategory).items.filter(item => typeof item === 'object' || typeof item === 'string').map(item => {
+                      if (typeof item === 'object') {
+                        return { label: Object.keys(item)[0], value: Object.keys(item)[0] };
+                      } else {
+                        return { label: item, value: item };
+                      }
+                    })}
+                    labelField="label"
+                    valueField="value"
+                    placeholder="Select subcategory"
+                    value={selectedSubcategory}
+                    onChange={item => setSelectedSubcategory(item.value)}
+                    style={styles.dropdown} 
+                  />
+                )}
                 <TextInput
                   style={styles.AddInput}
                   placeholder="Enter new item"
@@ -462,6 +517,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       </View>
     ); 
   };
+
+
 
   const AddButton = () => {
     return (
@@ -511,7 +568,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     });
   };
 
-  const FoodFlatList = ({onScroll}) => {
+  const FoodFlatList = () => {
     const renderItem = ({ item }) => (
       <View>
         <Text style={[styles.category, { color: item.color, borderColor: item.color }]}>
@@ -534,6 +591,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                       setColor(item.color);
                       setSelectedItem(brand !== 'Soda' ? `${subcategory} ${brand}` : `${subcategory}`);
                       setModalVisible(true);
+                      if (flatListRef.current) {
+                        flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
+                      }
                     }}
                     onLongPress={() => handleLongPressItem(subcategory)}
                   >
@@ -552,6 +612,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                   setColor(item.color);
                   setSelectedItem(food);
                   setModalVisible(true);
+                  if (flatListRef.current) {
+                    flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
+                  }
                 }}
                 onLongPress={() => handleLongPressItem(food)}
               >
@@ -565,14 +628,23 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     return (
       <FlatList
+        ref={flatListRef}
         data={filteredFoodItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.category}
         contentContainerStyle={styles.scrollContainer}
-        onScroll={onScroll}
+        onScroll={handleScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+        onLayout={() => {
+          // Restore scroll position on layout
+          if (flatListRef.current) {
+            flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
+          }
+        }}
       />
     );
   };
+  
 
   const QuantityModal = () => {
     useEffect(() => {
@@ -583,6 +655,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         }, 100); 
       }
     }, [modalVisible]);
+
+    
 
     const [quantity, setQuantity] = useState('')
     const [isValidQuantity, setIsValidQuantity] = useState(false)
@@ -597,6 +671,17 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       console.log(`Selected ${quantity} of ${selectedItem}`)
       
       setModalVisible(false) // Close modal after confirmation
+
+      if (flatListRef.current) {
+        flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
+      }
+
+      useEffect(() => {
+        // Scroll to the saved position when the component mounts
+        if (flatListRef.current) {
+          flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
+        }
+      }, []);
 
       setSelectedItems((prevItems) => ({
         ...prevItems,
@@ -856,15 +941,22 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             // ***CORRECTED PACKING LOGIC END***
   
           } else { // For non-beverage categories
-            for (const subcategory of subcategories) {
-              const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
-              const quantity = selectedItems[itemName] || 0;
-  
-              if (quantity > 0) {
-                formattedItems[brand][subcategory] = quantity;
-              }
+            const selectedSubcategories = []; 
+          for (const subcategory of subcategories) {
+            const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
+            const quantity = selectedItems[itemName] || 0;
+
+            if (quantity > 0) {
+              // Compact format: "Initial-Quantity" 
+              selectedSubcategories.push(`${subcategory.slice(0, 2).toUpperCase()}-${quantity}`);
             }
           }
+          if (selectedSubcategories.length > 0) {
+            formattedItems[brand] = { // Store as an object with a special key
+              'compact': `(${selectedSubcategories.join(', ')})` 
+            };
+          }
+        }
   
         } else { // For non-subcategory items
           const quantity = selectedItems[item] || 0;
@@ -889,9 +981,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
               const formattedPackItems = Object.entries(packContent)
                 .map(([initial, qty]) => `${initial}-${qty}`)
                 .join(', ');
-              formattedListArray.push(`\tPack: (${formattedPackItems})\n`);
+              formattedListArray.push(`\t(${formattedPackItems})\n`);
             });
-          } else {
+          } else if (itemKey === 'compact') {
+            formattedListArray.push(`\t${itemsData[itemKey]}\n`);
+          }
+          else {
             formattedListArray.push(`\t${itemKey}: ${itemsData[itemKey]}\n`);
           }
         }
@@ -907,15 +1002,15 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   return (
     <View style={{ flex: 1 }}>
       <SearchBar onSearchChange={handleSearchChange} onGoBackInSearch={handleGoBackInSearch} /> 
-      <FoodFlatList onScroll={handleScroll} />
+      <FoodFlatList />
       <QuantityModal />
-      <FormattedListModal />
       <AddModal />
       <Animated.View style={[
         styles.floatingButtonContainer,
         { opacity: buttonOpacity }
       ]
-}> 
+    }> 
+    <FormattedListModal />
         <EditModal />
         <AddButton />
         <UndoButton /> 
