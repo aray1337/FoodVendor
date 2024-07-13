@@ -2,7 +2,7 @@ import storage from './Storage';
 import SearchBar from './SearchBar';
 import React, { useState, useEffect, useRef } from 'react'
 import { Dropdown } from 'react-native-element-dropdown';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
 
 import {
   View,
@@ -51,7 +51,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const [showFormattedList, setShowFormattedList] = useState(false);
   const [coloredCategories, setColoredCategories] = useState([]);
   const inputRef = useRef(null)
-  const editInputRef = useRef(null)
   const [searchHistory, setSearchHistory] = useState([]);
   const [isListDirty, setIsListDirty] = useState(true); 
   const [searchQuery, setSearchQuery] = useState('');
@@ -62,14 +61,17 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const bottomSheetOffset = useRef(new Animated.Value(0)).current;
   const buttonOpacity = useRef(new Animated.Value(1)).current;
   const scrollTimer = useRef(null);
-  const [updateTrigger, setUpdateTrigger] = useState(false);
+  
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const editInputRef = useRef(null)
   const [editedItemName, setEditedItemName] = useState('');
+
   const [isLoading, setIsLoading] = useState(true);
-  const [listUpdateTrigger, setListUpdateTrigger] = useState(false); 
   const flatListRef = useRef(null); // Reference to the FlatList
-  const [scrollPosition, setScrollPosition] = useState(0);
+  const scrollPositionRef = useRef(0); // Reference to store the scroll position
+
+
 
 
 
@@ -99,7 +101,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     };
 
     const initializeFoodItems = () => {
-      setFilteredFoodItems([
+      var foodData = [
         {
           "category": "Food",
           "items": [
@@ -116,12 +118,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
           "items": [
             "Water",
             "Small Water",
+            "Sparkling Water",
+            "Vitamin Water",
             { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
             { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
             { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
             "Red Bull",
-            "Sparkling Water",
-            "Vitamin Water"
           ],
           "color": "#000000"
         },
@@ -138,20 +140,29 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "King Kone",
             "Birthday Cake",
             "Original",
-            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B."] },
-            "Häagen-Dazs"
+            "Reeses",
+            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B.", "Cookie Duet"] },
+            { "Häagen-Dazs": ["Almond", "Dark Chocolate", "Coffee Almond"] },
+            { "FrozFruit": ["Strawberry", "Coconut", "Mango", "Lime", "Pineapple"] },
           ],
           "color": "#000000"
         },
         {
-          "category": "Frozen Ice Cream",
+          "category": "Popsicle",
           "items": [
             "Spiderman",
             "Spongebob",
             "Spacejam",
             "Sonic",
+            "Batman",
             "Snowcone",
-            { "Minute Maid": ["Lemon", "Strawberry"] }
+          ],
+          "color": "#000000"
+        },
+        {
+          "category": "Frozen Cup",
+          "items": [
+            { "Minute Maid": ["Lemonade", "Strawberry"] }
           ],
           "color": "#000000"
         },
@@ -163,7 +174,10 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         {
           "category": "Miscellaneous",
           "items": [
-            { "Food": ["Onions", "Sauerkraut", "Mustard", "Ketchup"] },
+            "Onions",
+            "Sauerkraut",
+            "Mustard",
+            "Ketchup",
             "Sterno",
             "Napkins",
             "Roll Towels",
@@ -180,7 +194,10 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       ].map((category) => ({
         ...category,
         color: getColor(), 
-      })));
+      }))
+      
+      setFilteredFoodItems(foodData);
+      setColoredCategories(foodData);
     };
 
     loadFoodItems();
@@ -191,7 +208,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       formatFoodList();
       setIsListDirty(false); // Reset the flag after updating
     }
-  }, [selectedItems, isListDirty])
+  }, [isListDirty])
+
 
   const fadeOutButtons = () => {
     Animated.timing(buttonOpacity, {
@@ -220,12 +238,21 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     // Set a timer to fade buttons back in after a delay
     scrollTimer.current = setTimeout(() => {
       fadeInButtons();
-    }, 500); // Adjust delay (in ms) before fade-in 
+    }, 500); // Adjust delay (in ms) before fade-in
+
+    scrollPositionRef.current = event.nativeEvent.contentOffset.y;
   };
 
-  const handleMomentumScrollEnd = (event) => {
-    setScrollPosition(event.nativeEvent.contentOffset.y);
+  const restoreScrollPosition = () => {
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({
+        offset: scrollPositionRef.current,
+        animated: false, // Set to true for a smooth scroll back
+      });
+    }
   };
+  
+
 
   const handleLongPressItem = (item) => {
       setEditingItem(item);
@@ -301,7 +328,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const EditModal = () => {
     useEffect(() => {
       // Show the keyboard when the modal becomes visible
-      if (editModalVisible) {
+      if (editModalVisible && !editInputRef.current.isFocused()) {
         setTimeout(() => { // Use setTimeout to ensure TextInput is rendered
           editInputRef.current.focus(); // This will automatically open the keyboard
         }, 100); 
@@ -568,58 +595,67 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     });
   };
 
+  const handleItemPress = (food, itemColor) => {
+    const foodName = typeof food === 'object' ? Object.keys(food)[0] : food;
+
+    setColor(itemColor); 
+    setSelectedItem(foodName);
+    setModalVisible(true); // Open the QuantityModal
+  }; 
+
+  const FoodItem = React.memo(({ food, color, onItemPress, onItemLongPress }) => {
+    return ( 
+      <TouchableOpacity
+        style={[styles.itemContainer, { backgroundColor: color }]}
+        onPress={onItemPress}
+        onLongPress={onItemLongPress}
+      >
+        <Text style={styles.item}>{typeof food === 'object' ? Object.keys(food)[0] : food}</Text>
+      </TouchableOpacity>
+    );
+  }); 
+
   const FoodFlatList = () => {
     const renderItem = ({ item }) => (
       <View>
         <Text style={[styles.category, { color: item.color, borderColor: item.color }]}>
           {item.category}
         </Text>
-
-        {item.items.map((food) => {
+  
+        {item.items.map((food, index) => {
+          const foodKey = typeof food === 'object'
+            ? `${item.category}-${Object.keys(food)[0]}`
+            : `${item.category}-${food}`;
+  
           if (typeof food === 'object') {
+            // This is a subcategory - render nested items
             const [brand, subcategories] = Object.entries(food)[0];
-
+  
             return (
-              <View key={brand}> 
+              <View key={foodKey}>
                 <Text style={[styles.brand, { color: item.color }]}>{brand}</Text>
-                {subcategories.map((subcategory) => (
-                  <TouchableOpacity
-                    style={[styles.subItemContainer, { backgroundColor: item.color }]}
-                    key={`${brand} ${subcategory}`}
-                    onPress={() => {
-                      setSearchHistory([]);
-                      setColor(item.color);
-                      setSelectedItem(brand !== 'Soda' ? `${subcategory} ${brand}` : `${subcategory}`);
-                      setModalVisible(true);
-                      if (flatListRef.current) {
-                        flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
-                      }
-                    }}
-                    onLongPress={() => handleLongPressItem(subcategory)}
-                  >
-                    <Text style={styles.item}>{subcategory}</Text>
-                  </TouchableOpacity>
+                {subcategories.map((subcategory, subIndex) => ( 
+                  <FoodItem
+                    key={`${foodKey}-${subIndex}`} // Unique key for subcategory
+                    food={subcategory} 
+                    color={item.color}
+                    onItemPress={() => handleItemPress(`${subcategory} ${brand}`, item.color)} // Pass brand
+                    onItemLongPress={() => handleLongPressItem(subcategory)} 
+                  />
                 ))}
               </View>
             );
+  
           } else {
+            // This is a regular item
             return (
-              <TouchableOpacity
-                style={[styles.itemContainer, { backgroundColor: item.color }]}
-                key={food} 
-                onPress={() => {
-                  setSearchHistory([]);
-                  setColor(item.color);
-                  setSelectedItem(food);
-                  setModalVisible(true);
-                  if (flatListRef.current) {
-                    flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
-                  }
-                }}
-                onLongPress={() => handleLongPressItem(food)}
-              >
-                <Text style={styles.item}>{food}</Text>
-              </TouchableOpacity>
+              <FoodItem
+                key={foodKey} 
+                food={food}
+                color={item.color}
+                onItemPress={() => handleItemPress(food, item.color)}
+                onItemLongPress={() => handleLongPressItem(food)}
+              />
             );
           }
         })}
@@ -632,15 +668,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         data={filteredFoodItems}
         renderItem={renderItem}
         keyExtractor={(item) => item.category}
-        contentContainerStyle={styles.scrollContainer}
-        onScroll={handleScroll}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        onLayout={() => {
-          // Restore scroll position on layout
-          if (flatListRef.current) {
-            flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
-          }
-        }}
+        contentContainerStyle={styles.scrollContainer} 
+        onScroll={handleScroll} // Add this line to handle scroll events
+        onLayout={restoreScrollPosition} // Restore scroll position when layout changes
       />
     );
   };
@@ -671,24 +701,11 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       console.log(`Selected ${quantity} of ${selectedItem}`)
       
       setModalVisible(false) // Close modal after confirmation
-
-      if (flatListRef.current) {
-        flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
-      }
-
-      useEffect(() => {
-        // Scroll to the saved position when the component mounts
-        if (flatListRef.current) {
-          flatListRef.current.scrollToOffset({ offset: scrollPosition, animated: false });
-        }
-      }, []);
-
       setSelectedItems((prevItems) => ({
         ...prevItems,
         [selectedItem]: parseInt(quantity), // Store quantity as a number
       }));
       setSelectedItemsHistory((prevHistory) => [...prevHistory, { ...selectedItems }]);
-      setUpdateTrigger(!updateTrigger); 
       setIsListDirty(true); 
     };
 
@@ -907,7 +924,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             let packTotal = 0;
   
             for (const subcategory of subcategories) {
-              const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
+              const itemName = `${subcategory} ${brand}`;
               let quantity = selectedItems[itemName] || 0;
   
               // Only process if there's a quantity MORE THAN 3
@@ -1005,12 +1022,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       <FoodFlatList />
       <QuantityModal />
       <AddModal />
+      <FormattedListModal />
       <Animated.View style={[
         styles.floatingButtonContainer,
         { opacity: buttonOpacity }
       ]
     }> 
-    <FormattedListModal />
         <EditModal />
         <AddButton />
         <UndoButton /> 
@@ -1263,10 +1280,12 @@ const styles = StyleSheet.create({
     bottom: 220,
   },
   bottomSheetTrigger: {
+    borderRadius: 7,
     height: 100,
     width: 100,
   },
   bottomSheetContainer: {
+    borderRadius: 7,
     position: 'absolute',
     bottom: 0,
     left: 0,

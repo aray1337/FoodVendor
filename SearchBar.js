@@ -48,13 +48,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 5,
-    paddingHorizontal: 10,
-    marginRight: 10, 
-  },
-  searchButton: {
-    backgroundColor: 'black', // Customize button style
-    padding: 10,
-    borderRadius: 5,
+    paddingHorizontal: 10, 
   },
 });
 
