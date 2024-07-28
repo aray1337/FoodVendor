@@ -1,5 +1,7 @@
 import storage from './Storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import SearchBar from './SearchBar';
+ 
 import React, { useState, useEffect, useRef } from 'react'
 import { Dropdown } from 'react-native-element-dropdown';
 
@@ -17,6 +19,7 @@ import {
   Image,
   Alert,
   Animated,
+  PanResponder,
   TouchableWithoutFeedback
 } from 'react-native'
 
@@ -35,6 +38,8 @@ function getColor() {
 }
 
 
+
+
 // const foodItems = [
 //     { category: "Fruits", items: ["Apple", "Banana", "Orange"]},
 //     { category: "Vegetables", items: ["Carrot", "Broccoli", "Spinach"]},
@@ -43,39 +48,68 @@ function getColor() {
 
 const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   //react variables
-  const [modalVisible, setModalVisible] = useState(false)
-  const [selectedItem, setSelectedItem] = useState(null)
-  const [color, setColor] = useState(null)
-  const [selectedItems, setSelectedItems] = useState({}); // Store selected items and quantities
-  const [formattedList, setFormattedList] = useState([]); // Store the formatted list string
+
+  // Modal visibility state
+  const [modalVisible, setModalVisible] = useState(false); 
+  // Selected item state
+  const [selectedItem, setSelectedItem] = useState(null);
+  // Color state
+  const [color, setColor] = useState(null);
+  // Selected items state
+  const [selectedItems, setSelectedItems] = useState({}); 
+  // Formatted list state
+  const [formattedList, setFormattedList] = useState([]); 
+  // Show formatted list state
   const [showFormattedList, setShowFormattedList] = useState(false);
+  // Colored categories state
   const [coloredCategories, setColoredCategories] = useState([]);
-  const inputRef = useRef(null)
+  // Input reference
+  const inputRef = useRef(null);
+  // Search history state
   const [searchHistory, setSearchHistory] = useState([]);
+  // Is list dirty state
   const [isListDirty, setIsListDirty] = useState(true); 
+  // Search query state
   const [searchQuery, setSearchQuery] = useState('');
+  // Selected items history state
   const [selectedItemsHistory, setSelectedItemsHistory] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState(null); // Start with null
-  const [newItemInput, setNewItemInput] = useState('');
+  // Is modal visible state
   const [isModalVisible, setIsModalVisible] = useState(false);
+  // Bottom sheet offset
   const bottomSheetOffset = useRef(new Animated.Value(0)).current;
+  // Button opacity
   const buttonOpacity = useRef(new Animated.Value(1)).current;
+  // Scroll timer reference
   const scrollTimer = useRef(null);
-  
+  // Edit modal visibility state
   const [editModalVisible, setEditModalVisible] = useState(false);
+  // Editing item state
   const [editingItem, setEditingItem] = useState(null);
-  const editInputRef = useRef(null)
+  // Edit input reference
+  const editInputRef = useRef(null);
+  // Edited item name state
   const [editedItemName, setEditedItemName] = useState('');
-
+  // Is loading state
   const [isLoading, setIsLoading] = useState(true);
-  const flatListRef = useRef(null); // Reference to the FlatList
-  const scrollPositionRef = useRef(0); // Reference to store the scroll position
+  const scrollPositionRef = useRef(0);
+  // states for drag
+  const [draggingItem, setDraggingItem] = useState(null);
+  const [draggingIndex, setDraggingIndex] = useState(null);
+  const [dropZoneValues, setDropZoneValues] = useState({});
+  const [isOverDropZone, setIsOverDropZone] = useState(false);
+  
 
 
-
-
-
-
+  const resetStorage = async () => {
+    try {
+      await AsyncStorage.removeItem('foodItems');
+      console.log('Storage reset successfully');
+    } catch (error) {
+      console.error('Error resetting storage:', error);
+    }
+  };
+  
+  // Call the resetStorage function when you want to reset your storage
 
   useEffect(() => {
     const loadFoodItems = async () => {
@@ -83,7 +117,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         const storedItems = await storage.load({
           key: 'foodItems',
         });
-
+        
         if (storedItems && storedItems.length > 0) {
           setFilteredFoodItems(storedItems);
           setColoredCategories(storedItems);
@@ -106,6 +140,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
           "category": "Food",
           "items": [
             "Hot Dog",
+            "Corn Dog",
             "Sausage",
             "Bread",
             { "Pretzel": ["Regular", "Cheese"] },
@@ -214,7 +249,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const fadeOutButtons = () => {
     Animated.timing(buttonOpacity, {
       toValue: 0,
-      duration: 275, // Adjust fade-out duration
+      duration: 100, // Adjust fade-out duration
       useNativeDriver: true,
     }).start();
   };
@@ -223,118 +258,148 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const fadeInButtons = () => {
     Animated.timing(buttonOpacity, {
       toValue: 1,
-      duration: 275,  // Adjust fade-in duration
+      duration: 100,  // Adjust fade-in duration
       useNativeDriver: true,
     }).start();
   };
 
-  const handleScroll = (event) => {
-    // Clear any existing timer to prevent immediate fade-in 
-    clearTimeout(scrollTimer.current); 
-
-    // Fade out buttons immediately on scroll
-    fadeOutButtons();
-
-    // Set a timer to fade buttons back in after a delay
-    scrollTimer.current = setTimeout(() => {
-      fadeInButtons();
-    }, 500); // Adjust delay (in ms) before fade-in
-
-    scrollPositionRef.current = event.nativeEvent.contentOffset.y;
-  };
-
-  const restoreScrollPosition = () => {
-    if (flatListRef.current) {
-      flatListRef.current.scrollToOffset({
-        offset: scrollPositionRef.current,
-        animated: false, // Set to true for a smooth scroll back
-      });
-    }
-  };
+  
   
 
 
   const handleLongPressItem = (item) => {
-      setEditingItem(item);
-      setEditedItemName(item);
-      setEditModalVisible(true);
+      // setEditingItem(item);
+      // setEditedItemName(item);
+      // setEditModalVisible(true);
   };
   
   
   
 
-  const handleSaveEdit = () => {
-    if (editedItemName.trim() !== '') {
-      const updatedFoodItems = filteredFoodItems.map((category) => {
-        return {
-          ...category,
-          items: category.items.map((foodItem) => {
-            if (
-              (typeof foodItem === 'string' && foodItem === editingItem) ||
-              (typeof foodItem === 'object' &&
-                Object.keys(foodItem)[0] === Object.keys(editingItem)[0])
-            ) {
-              // Update the item name if it's a string or an object
-              return typeof foodItem === 'string'
-                ? editedItemName
-                : { [editedItemName]: Object.values(foodItem)[0] }; 
-            }
-            return foodItem;
-          }),
-        };
-      });
-      setFilteredFoodItems(updatedFoodItems);
-      setEditingItem(null);
-      setEditedItemName('');
-      setEditModalVisible(false);
-    }
-  };
 
-  const handleDeleteItem = () => {
-    const updatedFoodItems = filteredFoodItems.map((category) => {
-      return {
-        ...category,
-        items: category.items.filter((foodItem) => {
-          return (
-            (typeof foodItem === 'string' && foodItem !== editingItem) ||
-            (typeof foodItem === 'object' &&
-              Object.keys(foodItem)[0] !== Object.keys(editingItem)[0])
-          );
-        }),
-      };
-    });
-
-    // **AsyncStorage Logic**
-    storage.save({
-      key: 'foodItems',
-      data: updatedFoodItems,
-      expires: null,
-    }).then(() => {
-      setFilteredFoodItems(updatedFoodItems);
-      console.log('Food items saved to AsyncStorage after deletion');
-    }).catch(error => {
-      console.error('Error saving food items to AsyncStorage after deletion:', error);
-    });
-
-    setEditingItem(null);
-    setEditModalVisible(false);
-  };
-
-  const handleChangeEditInput = (text) => {
-    setEditedItemName(text);
-  };
 
 
   const EditModal = () => {
+
+    const areObjectsDeepEqual = (obj1, obj2) => {
+      const keys1 = Object.keys(obj1);
+      const keys2 = Object.keys(obj2);
+    
+      if (keys1.length !== keys2.length) {
+        return false;
+      }
+    
+      for (const key of keys1) {
+        const val1 = obj1[key];
+        const val2 = obj2[key];
+    
+        // Recursively check for nested objects
+        if (typeof val1 === 'object' && typeof val2 === 'object' && 
+            !Array.isArray(val1) && !Array.isArray(val2) 
+        ) {
+          if (!areObjectsDeepEqual(val1, val2)) {
+            return false;
+          }
+        } else if (val1 !== val2) {
+          return false;
+        }
+      }
+    
+      return true;
+    };
+      
     useEffect(() => {
       // Show the keyboard when the modal becomes visible
-      if (editModalVisible && !editInputRef.current.isFocused()) {
+      if (editModalVisible) {
         setTimeout(() => { // Use setTimeout to ensure TextInput is rendered
           editInputRef.current.focus(); // This will automatically open the keyboard
-        }, 100); 
+        });
       }
-    }, [editModalVisible]);
- // State for edited item name
+    }, []);
+    //  // State for edited item name
+
+    const [editedItemName, setEditedItemName] = useState('')
+    
+    const handleSaveEdit = () => {
+      if (editedItemName.trim() !== '') {
+        setFilteredFoodItems(prevItems => {
+          const updatedItems = prevItems.map(category => {
+            return {
+              ...category,
+              items: category.items.map(foodItem => {
+                if (typeof foodItem === 'string' && foodItem === editingItem) {
+                  // Updating a regular item
+                  return editedItemName;
+                } else if (typeof foodItem === 'object' && typeof editingItem === 'string') {
+                  // Updating a subcategory item 
+                  const [key, values] = Object.entries(foodItem)[0];
+                  const updatedValues = values.map(subItem => 
+                    subItem === editingItem ? editedItemName : subItem 
+                  );
+                  return { [key]: updatedValues }; 
+                } else {
+                  // No changes to this foodItem 
+                  return foodItem;
+                }
+              }),
+            };
+          });
+    
+          // Save updated items to AsyncStorage
+          storage.save({
+            key: 'foodItems',
+            data: updatedItems,
+            expires: null,
+          }).then(() => {
+            setColoredCategories(updatedItems);
+            console.log('Food items saved to AsyncStorage after editing');
+          }).catch(error => {
+            console.error('Error saving food items to AsyncStorage after editing:', error);
+          });
+    
+          return updatedItems;
+        });
+    
+        setEditingItem(null);
+        setEditModalVisible(false);
+      }
+    };
+    
+  
+    const handleDeleteItem = () => {
+      const updatedFoodItems = filteredFoodItems.map((category) => {
+        return {
+          ...category,
+          items: category.items.filter((foodItem) => {
+            return (
+              (typeof foodItem === 'string' && foodItem !== editingItem) ||
+              (typeof foodItem === 'object' &&
+                Object.keys(foodItem)[0] !== Object.keys(editingItem)[0])
+            );
+          }),
+        };
+      });
+  
+      // **AsyncStorage Logic**
+      storage.save({
+        key: 'foodItems',
+        data: updatedFoodItems,
+        expires: null,
+      }).then(() => {
+        setFilteredFoodItems(updatedFoodItems);
+        setColoredCategories(updatedFoodItems);
+        console.log('Food items saved to AsyncStorage after deletion');
+      }).catch(error => {
+        console.error('Error saving food items to AsyncStorage after deletion:', error);
+      });
+  
+      setEditingItem(null);
+      setEditModalVisible(false);
+    };
+  
+    const handleChangeEditInput = (text) => {
+      setEditedItemName(text);
+    };
 
     return (
       <Modal
@@ -348,16 +413,17 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         >
         <View style={styles.centeredView}>
           <View style={styles.editModalView}>
-            <Text style={styles.modalText}>Edit Item</Text>
+              <Text style={styles.modalText}>{editingItem}</Text>
             <TextInput
               style={styles.EditInput}
               value={editedItemName}
-                onChangeText={handleChangeEditInput}
+              onChangeText={handleChangeEditInput}
               ref={editInputRef}
+              placeholder="Enter new item name"
             />
             <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={[styles.editButton]} 
+                style={[styles.saveButton]} 
                 onPress={handleSaveEdit}
               >
                 <Text style={styles.textStyle}>Save</Text>
@@ -366,7 +432,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                 style={[styles.deleteButton]} // Red button for delete
                 onPress={handleDeleteItem}
               >
-                <Text style={styles.textStyle}>Delete</Text>
+                <Image source={require('./assets/trash-icon.png')} style={styles.trashIcon} />
               </TouchableOpacity>
             </View>
           </View>
@@ -425,6 +491,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             expires: null,
           }).then(() => {
             setFilteredFoodItems(updatedItems);
+            setColoredCategories(updatedItems);
             console.log('Food items saved to AsyncStorage');
           }).catch(error => {
             console.error('Error saving food items to AsyncStorage:', error);
@@ -547,6 +614,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
 
 
+
   const AddButton = () => {
     return (
       <TouchableOpacity 
@@ -565,18 +633,24 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     if (query.trim() === '') {
       // Reset to the full list
-      setFilteredFoodItems([...coloredCategories]); 
+      setFilteredFoodItems([...coloredCategories]);
     } else {
-      // Filtering logic (unchanged)
-      const filteredItems = coloredCategories.map((category) => ({
-        ...category,
-        items: category.items.filter((item) => {
+      const filteredItems = coloredCategories.map((category) => {
+        const matchingItems = category.items.filter((item) => {
           const itemName = typeof item === 'object'
             ? Object.entries(item)[0][1].join(' ')
             : item;
           return itemName.toLowerCase().includes(query.toLowerCase());
-        }),
-      }));
+        });
+  
+        // Only include the category if it has matching items
+        if (matchingItems.length > 0) {
+          return { ...category, items: matchingItems };
+        } else {
+          return null; // This will remove the category from the filtered results
+        }
+      }).filter(Boolean); // Remove null entries 
+  
       setFilteredFoodItems(filteredItems);
     }
   };
@@ -603,19 +677,61 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     setModalVisible(true); // Open the QuantityModal
   }; 
 
-  const FoodItem = React.memo(({ food, color, onItemPress, onItemLongPress }) => {
+  const FoodItem = React.memo(({ food, color, onItemPress, onItemLongPress, style, onEditPress}) => {
     return ( 
       <TouchableOpacity
-        style={[styles.itemContainer, { backgroundColor: color }]}
+        style={[style, { backgroundColor: color }]}
         onPress={onItemPress}
         onLongPress={onItemLongPress}
       >
+        <View style={styles.itemContentContainer}> 
         <Text style={styles.item}>{typeof food === 'object' ? Object.keys(food)[0] : food}</Text>
+        <TouchableOpacity onPress={onEditPress} style={styles.editButton}>
+          <Image source={require('./assets/edit-icon.png')} style={styles.editIcon} />
+        </TouchableOpacity>
+      </View>
       </TouchableOpacity>
     );
   }); 
 
   const FoodFlatList = () => {
+    const [isScrolling, setIsScrolling] = useState(false); // Track scrolling state
+    const flatListRef = useRef(null); // Scroll position reference
+    
+
+    const handleEditPress = (foodItem) => {
+      let itemToEdit = foodItem; // Assume it's a regular item
+
+      if (typeof foodItem === 'object') {
+        // It's a subcategory, so extract the correct item
+        const [subcategoryKey, subcategoryValues] = Object.entries(foodItem)[0];
+        itemToEdit = subcategoryValues.find(subItem => subItem === editingItem); // Find the matching subitem
+      }
+    
+      console.log("Edit item:", itemToEdit); // Should now log "Regular"
+      setEditingItem(itemToEdit);
+      setEditedItemName(itemToEdit);
+      setEditModalVisible(true);
+    };
+
+    const handleScroll = () => {
+      fadeOutButtons();
+    };
+
+    const handleScrollBegin = () => {
+      setIsScrolling(true);
+      fadeOutButtons(); // Fade out when scrolling starts 
+    };
+
+    const handleScrollEnd = (event) => {
+      setIsScrolling(false);
+      fadeInButtons(); // Fade in when scrolling ends
+      scrollPositionRef.current = event.nativeEvent.contentOffset.y;
+    };
+
+  
+    
+
     const renderItem = ({ item }) => (
       <View>
         <Text style={[styles.category, { color: item.color, borderColor: item.color }]}>
@@ -640,7 +756,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                     food={subcategory} 
                     color={item.color}
                     onItemPress={() => handleItemPress(`${subcategory} ${brand}`, item.color)} // Pass brand
-                    onItemLongPress={() => handleLongPressItem(subcategory)} 
+                    onItemLongPress={() => handleLongPressItem(subcategory)}
+                    style={[styles.itemContainer, { marginLeft: 10 }]}
+                    onEditPress={()=> handleEditPress(subcategory)}
                   />
                 ))}
               </View>
@@ -655,6 +773,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                 color={item.color}
                 onItemPress={() => handleItemPress(food, item.color)}
                 onItemLongPress={() => handleLongPressItem(food)}
+                style={[styles.itemContainer]} 
+                onEditPress={()=> handleEditPress(food)}
               />
             );
           }
@@ -667,10 +787,36 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         ref={flatListRef}
         data={filteredFoodItems}
         renderItem={renderItem}
-        keyExtractor={(item) => item.category}
+        showsVerticalScrollIndicator={false} // Optional: Hide scroll indicator
+        keyExtractor={(item, index) => {
+          const generateKey = (cat, itm, parentKeys = []) => {
+            const keyParts = [...parentKeys, cat, typeof itm === 'object' ? Object.keys(itm)[0] : itm];
+            return keyParts.join('-');
+          };
+        
+          return item.category 
+            ? generateKey(item.category, item.items, ['category'])
+            : generateKey(null, item); 
+        }}
         contentContainerStyle={styles.scrollContainer} 
         onScroll={handleScroll} // Add this line to handle scroll events
-        onLayout={restoreScrollPosition} // Restore scroll position when layout changes
+        onLayout={
+          useEffect(() => {
+            const restoreScroll = requestAnimationFrame(() => {
+              if (flatListRef.current && scrollPositionRef.current > 0) {
+                flatListRef.current.scrollToOffset({
+                  offset: scrollPositionRef.current,
+                  animated: false, 
+                });
+              }
+            }); 
+        
+            // Cleanup: Cancel the scheduled frame if the component unmounts
+            return () => cancelAnimationFrame(restoreScroll);  
+          }, [scrollPositionRef])
+        } // Restore scroll position when layout changes
+        onMomentumScrollBegin={handleScrollBegin}
+        onMomentumScrollEnd={handleScrollEnd}
       />
     );
   };
@@ -688,11 +834,11 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     
 
-    const [quantity, setQuantity] = useState('')
+    const [quantity, setQuantity] = useState(0)
     const [isValidQuantity, setIsValidQuantity] = useState(false)
 
     const handleConfirm = () => {
-      if (quantity === null || quantity <= 0 || isNaN(quantity) || quantity.includes('.') || quantity.includes(' ')) {
+      if (quantity === null || quantity <= 0 || isNaN(quantity) || quantity.includes('.')) {
         setIsValidQuantity(false)
         return
       } else {
@@ -855,20 +1001,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     );
   };
     
-  const ViewFormattedListButton = () => {
-    return (
-      <TouchableOpacity
-        style={[styles.floatingButton, styles.viewListButton]}
-        onPress={toggleBottomSheet} // Toggle bottom sheet on button press
-        activeOpacity={0.7}
-      >
-        <Image
-          source={require('./assets/eye-icon.png')}
-          style={styles.floatingButtonIcon}
-        />
-      </TouchableOpacity>
-    );
-  };
 
   const UndoButton = () => {
     return (
@@ -934,15 +1066,16 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                   const amountToAdd = Math.min(quantity, availableSpace);
   
                   if (amountToAdd > 0) {
-                    currentPack[subcategory[0].toUpperCase()] = (currentPack[subcategory[0].toUpperCase()] || 0) + amountToAdd;
+                    const abbreviation = subcategory.split(' ').map(word => word[0].toUpperCase()).join('.'); 
+                    currentPack[abbreviation] = (currentPack[abbreviation] || 0) + amountToAdd;
                     packTotal += amountToAdd;
                     quantity -= amountToAdd;
                   }
   
                   if (packTotal === 24) {
-                    formattedItems[brand]['Pack'] = formattedItems[brand]['Pack'] || []; 
+                    formattedItems[brand]['Pack'] = formattedItems[brand]['Pack'] || [];
                     formattedItems[brand]['Pack'].push(currentPack);
-                    currentPack = {};
+                    currentPack = {}
                     packTotal = 0;
                   }
                 }
@@ -959,60 +1092,78 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   
           } else { // For non-beverage categories
             const selectedSubcategories = []; 
-          for (const subcategory of subcategories) {
-            const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
-            const quantity = selectedItems[itemName] || 0;
+            for (const subcategory of subcategories) {
+              const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
+              const quantity = selectedItems[itemName] || 0;
 
-            if (quantity > 0) {
-              // Compact format: "Initial-Quantity" 
-              selectedSubcategories.push(`${subcategory.slice(0, 2).toUpperCase()}-${quantity}`);
+              if (quantity > 0) {
+                selectedSubcategories.push(`${subcategory.slice(0, 2).toUpperCase()}-${quantity}`);
+              }
+            }
+            if (selectedSubcategories.length > 0) {
+              formattedItems[brand] = { // Store as an object with a special key
+                'compact': `(${selectedSubcategories.join(', ')})` 
+              };
             }
           }
-          if (selectedSubcategories.length > 0) {
-            formattedItems[brand] = { // Store as an object with a special key
-              'compact': `(${selectedSubcategories.join(', ')})` 
-            };
-          }
-        }
-  
         } else { // For non-subcategory items
           const quantity = selectedItems[item] || 0;
           if (quantity > 0) {
-            formattedItems[category.category] = formattedItems[category.category] || {};
-            formattedItems[category.category][item] = quantity;
+            // formattedItems[category.category] = formattedItems[category.category] || {};
+            formattedItems[item] = quantity;
           }
         }
       }
     }
   
-    // Format the output list
-    let formattedListArray = [];
-  
-    for (const [brand, itemsData] of Object.entries(formattedItems)) {
-      if (Object.keys(itemsData).length > 0) {
-        formattedListArray.push(`${brand}:\n`);
-  
-        for (const itemKey in itemsData) {
-          if (itemKey === 'Pack') {
-            itemsData['Pack'].forEach((packContent, index) => {
-              const formattedPackItems = Object.entries(packContent)
-                .map(([initial, qty]) => `${initial}-${qty}`)
-                .join(', ');
-              formattedListArray.push(`\t(${formattedPackItems})\n`);
-            });
-          } else if (itemKey === 'compact') {
-            formattedListArray.push(`\t${itemsData[itemKey]}\n`);
-          }
-          else {
-            formattedListArray.push(`\t${itemKey}: ${itemsData[itemKey]}\n`);
-          }
-        }
-  
-        formattedListArray.push(''); 
-      }
-    }
-  
-    setFormattedList(formattedListArray.join(''));
+   // Format the output list (without category headers)
+   let formattedListArray = [];
+
+   for (const [brandOrItem, quantityData] of Object.entries(formattedItems)) {
+     if (typeof quantityData === 'object') { 
+       let hasSelectedSubcategories = false;
+ 
+       // Check for selected items in different formats
+       if (quantityData['Pack'] && quantityData['Pack'].length > 0) {
+         hasSelectedSubcategories = true; // It has a pack with items
+       } else if (quantityData['compact']) {
+         hasSelectedSubcategories = true; // It's in compact format
+       } else {
+         // Check within nested subcategories
+         hasSelectedSubcategories = Object.values(quantityData).some((subCategoryData) => {
+           return typeof subCategoryData === 'number' && subCategoryData > 0;
+         });
+       }
+ 
+       // Only add the brand if there are selected items
+       if (hasSelectedSubcategories) {
+         formattedListArray.push(`${brandOrItem}:\n`);
+ 
+         if (quantityData['Pack']) {
+           quantityData['Pack'].forEach((packContent) => {
+             const formattedPackItems = Object.entries(packContent)
+               .map(([initial, qty]) => `${initial}-${qty}`)
+               .join(', ');
+             formattedListArray.push(`\t(${formattedPackItems})\n`);
+           });
+         } else if (quantityData['compact']) {
+           formattedListArray.push(`\t${quantityData['compact']}\n`); 
+         } else {
+           // Handle other subcategories, only if quantity > 0
+           for (const [subItem, qty] of Object.entries(quantityData)) {
+             if (qty > 0) {
+               formattedListArray.push(`\t${subItem}: ${qty}\n`);
+             }
+           }
+         }
+       }
+ 
+     } else if (quantityData > 0) { 
+       formattedListArray.push(`${brandOrItem}: ${quantityData}\n`); 
+     }
+   }
+ 
+   setFormattedList(formattedListArray.join(''));
   };
   
 
@@ -1051,22 +1202,18 @@ const styles = StyleSheet.create({
   },
 
   itemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+    justifyContent: 'space-between',
     borderRadius: 5, // Rounded corners for items
-    padding: 7,
+    padding: 5,
     marginVertical: 3.5,
     transparency: 0.5,
-
-    // shadow for ios
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    //shadow for android
-    elevation: 3
   },
   item: {
     color: '#fff', // White text color for better contrast
-    fontSize: 16
+    fontSize: 16,
+    marginRight: 10,
     // fontWeight: 'bold'
   },
   centeredView: {
@@ -1082,11 +1229,19 @@ const styles = StyleSheet.create({
     borderBottomStartRadius: 20,
     padding: 10,
     paddingHorizontal: '40%',
-    elevation: 2,
     marginHorizontal: 5,
-    backgroundColor: '#2196F3'
+    backgroundColor: '#2196F3',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  editButton: {
+  saveButton: {
+    justifyContent: 'center',
     margin:7,
     borderRadius: 5,
     borderTopEndRadius: 20,
@@ -1155,13 +1310,6 @@ const styles = StyleSheet.create({
     marginVertical: 3.5,
     transparency: 0.5,
     marginLeft: 20,
-    // shadow for ios
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    //shadow for android
-    elevation: 3
   },
   scrollContainer: {
     flexGrow: 1, // Allow ScrollView to take up available space
@@ -1187,14 +1335,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     padding: 15,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
   },
   editModalView: {
     backgroundColor: 'white',
@@ -1240,7 +1380,7 @@ const styles = StyleSheet.create({
   floatingButton: {
     position: 'absolute',
     marginTop: 50,
-    right: 20,
+    right: 5,
     width: 60,
     height: 60,
     borderRadius: 30, 
@@ -1301,6 +1441,23 @@ const styles = StyleSheet.create({
     elevation: 5,
     overflow: 'hidden',
   },
+  itemContentContainer: {
+    flexDirection: 'row',
+    alignItems: 'center', 
+    justifyContent: 'space-between', // Add some padding to the FoodItem
+  },
+  editButton: {
+    padding: 2,  // Add some padding to the button
+  },
+  editIcon: {
+    width: 30, 
+    height: 30, // Adjust color as needed
+  },
+  trashIcon: {
+    width: 25,
+    height: 25,
+    tintColor: '#FFFFFF'
+  }
 })
 
 export default FoodList
