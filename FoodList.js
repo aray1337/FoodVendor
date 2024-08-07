@@ -1,7 +1,7 @@
 import storage from './Storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SearchBar from './SearchBar';
- 
+import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useState, useEffect, useRef } from 'react'
 import { Dropdown } from 'react-native-element-dropdown';
 
@@ -19,7 +19,6 @@ import {
   Image,
   Alert,
   Animated,
-  PanResponder,
   TouchableWithoutFeedback
 } from 'react-native'
 
@@ -92,11 +91,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   // Is loading state
   const [isLoading, setIsLoading] = useState(true);
   const scrollPositionRef = useRef(0);
-  // states for drag
-  const [draggingItem, setDraggingItem] = useState(null);
-  const [draggingIndex, setDraggingIndex] = useState(null);
-  const [dropZoneValues, setDropZoneValues] = useState({});
-  const [isOverDropZone, setIsOverDropZone] = useState(false);
+
+  
   
 
 
@@ -112,6 +108,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   // Call the resetStorage function when you want to reset your storage
 
   useEffect(() => {
+
     const loadFoodItems = async () => {
       try {
         const storedItems = await storage.load({
@@ -143,8 +140,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Corn Dog",
             "Sausage",
             "Bread",
+            "Churros",
             { "Pretzel": ["Regular", "Cheese"] },
-            "Churros"
           ],
           "color": "#000000"
         },
@@ -155,30 +152,31 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Small Water",
             "Sparkling Water",
             "Vitamin Water",
+            "Red Bull",
             { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
             { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
             { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
-            "Red Bull",
           ],
           "color": "#000000"
         },
         {
           "category": "Ice Cream",
           "items": [
+            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B.", "Cookie Duet"] },
+            { "Häagen-Dazs": ["Almond", "Dark Chocolate", "Coffee Almond"] },
+            { "FrozFruit": ["Strawberry", "Coconut", "Mango", "Lime", "Pineapple"] },
             "Oreo Bar",
             "Klondike",
             "Strawberry Shortcake",
             "Vanilla Bar",
             "Giant Sandwich",
+            "Chocolate Chip",
             "Cookie Sandwich",
             "Choc Éclair",
             "King Kone",
             "Birthday Cake",
             "Original",
             "Reeses",
-            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B.", "Cookie Duet"] },
-            { "Häagen-Dazs": ["Almond", "Dark Chocolate", "Coffee Almond"] },
-            { "FrozFruit": ["Strawberry", "Coconut", "Mango", "Lime", "Pineapple"] },
           ],
           "color": "#000000"
         },
@@ -190,6 +188,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Spacejam",
             "Sonic",
             "Batman",
+            "Bomb Pop",
+            "Ninja Turtle",
             "Snowcone",
           ],
           "color": "#000000"
@@ -357,6 +357,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             console.error('Error saving food items to AsyncStorage after editing:', error);
           });
     
+          
           return updatedItems;
         });
     
@@ -367,35 +368,54 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     
   
     const handleDeleteItem = () => {
-      const updatedFoodItems = filteredFoodItems.map((category) => {
-        return {
-          ...category,
-          items: category.items.filter((foodItem) => {
-            return (
-              (typeof foodItem === 'string' && foodItem !== editingItem) ||
-              (typeof foodItem === 'object' &&
-                Object.keys(foodItem)[0] !== Object.keys(editingItem)[0])
-            );
-          }),
-        };
-      });
+      setFilteredFoodItems((prevItems) => {
+        const updatedFoodItems = prevItems.map((category) => {
+          return {
+            ...category,
+            items: category.items.reduce((acc, item) => {
+              if (typeof item === 'string') {
+                // Regular item: delete if it matches editingItem
+                if (item !== editingItem) {
+                  acc.push(item);
+                }
+              } else if (typeof item === 'object') {
+                const [subcatName, subcatItems] = Object.entries(item)[0];
   
-      // **AsyncStorage Logic**
-      storage.save({
-        key: 'foodItems',
-        data: updatedFoodItems,
-        expires: null,
-      }).then(() => {
-        setFilteredFoodItems(updatedFoodItems);
-        setColoredCategories(updatedFoodItems);
-        console.log('Food items saved to AsyncStorage after deletion');
-      }).catch(error => {
-        console.error('Error saving food items to AsyncStorage after deletion:', error);
+                // Subcategory item: delete if it matches editingItem 
+                const updatedSubItems = subcatItems.filter(subItem => subItem !== editingItem); 
+  
+                // Add the subcategory back only if it has items left
+                if (updatedSubItems.length > 0) {
+                  acc.push({ [subcatName]: updatedSubItems }); 
+                }
+              } else {
+                // Keep other item types
+                acc.push(item); 
+              }
+              return acc;
+            }, []),
+          };
+        });
+  
+        // AsyncStorage Logic to save updatedFoodItems 
+        storage.save({
+          key: 'foodItems',
+          data: updatedFoodItems,
+          expires: null,
+        }).then(() => {
+          setColoredCategories(updatedFoodItems);
+          console.log('Food items saved to AsyncStorage after deleting item');
+        }).catch(error => {
+          console.error('Error saving food items to AsyncStorage after deleting item:', error);
+        });
+  
+        return updatedFoodItems;
       });
   
       setEditingItem(null);
       setEditModalVisible(false);
     };
+    
   
     const handleChangeEditInput = (text) => {
       setEditedItemName(text);
@@ -509,10 +529,17 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     });
   };
 
+  
+
   const AddModal = () => {
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [newItemInput, setNewItemInput] = useState('');
     const [selectedSubcategory, setSelectedSubcategory] = useState(null); // State for selected subcategory
+    const [selectedInsertIndex, setSelectedInsertIndex] = useState(null);
+    const [isFocusCategory, setIsFocusCategory] = useState(false);
+    const [IsFocusSubcategory, setIsFocusSubcategory] = useState(false);
+    const [isFocusPosition, setIsFocusPosition] = useState(false);
+
 
 
 
@@ -522,41 +549,92 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       }
     }, [filteredFoodItems]);
 
+    
+
     const handleAddItem = () => {
       if (newItemInput.trim() !== '') {
-        if (selectedSubcategory) {
-          // Adding a subcategory item
-          const categoryIndex = filteredFoodItems.findIndex(item => item.category === selectedCategory);
-          if (categoryIndex !== -1) {
-            setFilteredFoodItems(prevItems => {
-              const updatedItems = [...prevItems];
-              updatedItems[categoryIndex].items = updatedItems[categoryIndex].items.map(item => {
-                if (typeof item === 'object' && Object.keys(item)[0] === selectedSubcategory) {
-                  return { [selectedSubcategory]: [...Object.values(item)[0], newItemInput] };
+        const categoryIndex = filteredFoodItems.findIndex(
+          (item) => item.category === selectedCategory
+        );
+    
+        if (categoryIndex !== -1) {
+          setFilteredFoodItems((prevItems) => {
+            const updatedItems = [...prevItems];
+            const categoryToUpdate = updatedItems[categoryIndex];
+    
+            if (categoryToUpdate && categoryToUpdate.items) { // Check if items exists
+              if (selectedSubcategory) {
+                // Adding to a subcategory
+                const subCategoryItem = categoryToUpdate.items.find(
+                  (item) =>
+                    typeof item === 'object' &&
+                    Object.keys(item)[0] === selectedSubcategory
+                );
+    
+                if (subCategoryItem) {
+                  // Ensure subCategoryItem is found
+                  const subItems = [...subCategoryItem[selectedSubcategory]];
+                  const insertAt =
+                    selectedInsertIndex !== null
+                      ? selectedInsertIndex
+                      : subItems.length;
+                  subItems.splice(insertAt, 0, newItemInput);
+    
+                  // Update the items array within categoryToUpdate
+                  categoryToUpdate.items = categoryToUpdate.items.map((item) => {
+                    if (
+                      typeof item === 'object' &&
+                      Object.keys(item)[0] === selectedSubcategory
+                    ) {
+                      return { [selectedSubcategory]: subItems };
+                    } else {
+                      return item;
+                    }
+                  });
+                } else {
+                  console.warn(
+                    `Subcategory '${selectedSubcategory}' not found in category '${selectedCategory}'`
+                  );
                 }
-                return item;
-              });
-              storage.save({
-                key: 'foodItems',
-                data: updatedItems,
-                expires: null,
-              }).then(() => {
-                setFilteredFoodItems(updatedItems);
-                console.log('Food items saved to AsyncStorage');
-              }).catch(error => {
-                console.error('Error saving food items to AsyncStorage:', error);
-              });
-              return updatedItems;
+              } else {
+                // Adding to the main category
+                const insertAt =
+                  selectedInsertIndex !== null
+                    ? selectedInsertIndex
+                    : categoryToUpdate.items.length;
+                categoryToUpdate.items.splice(insertAt, 0, newItemInput);
+              }
+            } else {
+              console.warn(`'items' array not found in category '${categoryToUpdate?.category || selectedCategory}'`);
+            }
+
+            storage.save({
+              key: 'foodItems',
+              data: updatedItems,
+              expires: null,
+            }).then(() => {
+              setFilteredFoodItems(updatedItems);
+              console.log('Food items saved to AsyncStorage');
+            }).catch(error => {
+              console.error('Error saving food items to AsyncStorage:', error);
             });
-          }
-        } else {
-          // Adding a regular item
-          addFoodItem(selectedCategory, newItemInput);
-        }
+            return updatedItems;
+          });
+        } 
+
         setNewItemInput('');
         setIsModalVisible(false);
-        setSelectedSubcategory(null); // Reset subcategory after adding
+        setSelectedSubcategory(null); 
+        setSelectedInsertIndex(null);
       }
+    };
+
+    // Function to handle selection of insertion index
+    const handleIndexSelect = (index) => {
+      if (selectedCategory !== filteredFoodItems[0].category) {
+        setSelectedCategory(filteredFoodItems[0].category); // Only update if necessary
+      }
+      setSelectedInsertIndex(index);
     };
 
     return (
@@ -566,50 +644,127 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
           animationType="fade"
           transparent={true}
         >
-            <TouchableWithoutFeedback onPress={() => setIsModalVisible(false)}>
+          <TouchableWithoutFeedback onPress={() => setIsModalVisible(false)}>
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
-                <Dropdown
-                  data={filteredFoodItems.map(item => ({ label: item.category, value: item.category }))}
-                  labelField="label"
-                  valueField="value"
-                  placeholder="Select category"
-                  value={selectedCategory}
-                  onChange={item => setSelectedCategory(item.value)}
-                  style={styles.dropdown} 
-                />
+              <Dropdown
+                style={[styles.dropdown, isFocusCategory && { borderColor: '#0098FF' }]} // Add dropdown style here
+                placeholderStyle={styles.placeholderStyle}
+                selectedTextStyle={styles.selectedTextStyle}
+                inputSearchStyle={styles.inputSearchStyle}
+                iconStyle={styles.iconStyle}
+                data={filteredFoodItems.map(item => ({ label: item.category, value: item.category }))}
+                labelField="label"
+                valueField="value"
+                placeholder={!isFocusCategory ? 'Select category' : '...'} // Update placeholder
+                searchPlaceholder="Search..."
+                value={selectedCategory}
+                onFocus={() => setIsFocusCategory(true)} 
+                onBlur={() => setIsFocusCategory(false)}
+                onChange={item => {
+                  setSelectedCategory(item.value);
+                  setIsFocusCategory(false); 
+                }}
+                
+              />
                 {selectedCategory && (
                   <Dropdown
-                    data={filteredFoodItems.find(item => item.category === selectedCategory).items.filter(item => typeof item === 'object' || typeof item === 'string').map(item => {
-                      if (typeof item === 'object') {
-                        return { label: Object.keys(item)[0], value: Object.keys(item)[0] };
-                      } else {
-                        return { label: item, value: item };
-                      }
-                    })}
-                    labelField="label"
-                    valueField="value"
-                    placeholder="Select subcategory"
-                    value={selectedSubcategory}
-                    onChange={item => setSelectedSubcategory(item.value)}
-                    style={styles.dropdown} 
-                  />
+                  style={[styles.dropdown, IsFocusSubcategory && { borderColor: '#0098FF' }]} // Add dropdown style here
+                  placeholderStyle={styles.placeholderStyle}
+                  selectedTextStyle={styles.selectedTextStyle}
+                  inputSearchStyle={styles.inputSearchStyle}
+                  iconStyle={styles.iconStyle}
+                  data={filteredFoodItems
+                    .find(item => item.category === selectedCategory)
+                    .items.filter(item => typeof item === 'object')
+                    .map(item => ({ label: Object.keys(item)[0], value: Object.keys(item)[0] }))}
+                  labelField="label"
+                  valueField="value"
+                  placeholder={!IsFocusSubcategory ? 'Select subcategory' : '...'} // Update placeholder
+                  searchPlaceholder="Search..."
+                  value={selectedSubcategory}
+                  onFocus={() => setIsFocusSubcategory(true)} 
+                  onBlur={() => setIsFocusSubcategory(false)}
+                  onChange={item => {
+                    setSelectedSubcategory(item.value);
+                    setIsFocusSubcategory(false); 
+                  }}
+                  
+                />
                 )}
+  
+                
+                {selectedCategory && (
+                <Dropdown
+                  style={[styles.dropdown, isFocusPosition && { borderColor: '#0098FF' }]} 
+                  placeholderStyle={styles.placeholderStyle}
+                  selectedTextStyle={styles.selectedTextStyle}
+                  inputSearchStyle={styles.inputSearchStyle}
+                  iconStyle={styles.iconStyle}
+                  data={(() => {
+                    const categoryItems = filteredFoodItems.find(
+                      (item) => item.category === selectedCategory
+                    ).items;
+
+                    const targetItems = selectedSubcategory
+                      ? categoryItems.find(
+                          (item) =>
+                            typeof item === 'object' &&
+                            Object.keys(item)[0] === selectedSubcategory
+                        )
+                        ? categoryItems.find(
+                            (item) =>
+                              typeof item === 'object' &&
+                              Object.keys(item)[0] === selectedSubcategory
+                          )[selectedSubcategory]
+                        : categoryItems
+                      : categoryItems;
+
+                    // Create data for position dropdown
+                    const positionData = [];
+                    for (let i = 1; i <= targetItems.length; i++) {
+                      if (i === targetItems.length) {
+                        positionData.push({ label: 'End', value: i });
+                      } else {
+                        const itemName = typeof targetItems[i - 1] === 'object'
+                          ? Object.keys(targetItems[i - 1])[0]
+                          : targetItems[i - 1];
+                        positionData.push({ 
+                          label: `Before ${itemName}`, 
+                          value: i 
+                        });
+                      }
+                    }
+                    return positionData;
+                  })()}
+                  labelField="label"
+                  valueField="value"
+                  placeholder={!isFocusPosition ? 'Select Position' : '...'}
+                  value={selectedInsertIndex} 
+                  onFocus={() => setIsFocusPosition(true)}
+                  onBlur={() => setIsFocusPosition(false)}
+                  onChange={(item) => {
+                    setSelectedInsertIndex(item.value);
+                    setIsFocusPosition(false);
+                  }}
+                />
+              )}
+  
                 <TextInput
                   style={styles.AddInput}
                   placeholder="Enter new item"
                   value={newItemInput}
                   onChangeText={setNewItemInput}
                 />
-                <TouchableOpacity style={styles.AddButton} onPress={handleAddItem}> 
+                <TouchableOpacity style={styles.AddButton} onPress={handleAddItem}>
                   <Text style={styles.textStyle}>Add Item</Text>
                 </TouchableOpacity>
-              </View>    
+              </View>
             </View>
-            </TouchableWithoutFeedback>
-      </Modal>
+          </TouchableWithoutFeedback>
+        </Modal>
       </View>
-    ); 
+    );
   };
 
 
@@ -633,24 +788,29 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     if (query.trim() === '') {
       // Reset to the full list
-      setFilteredFoodItems([...coloredCategories]);
+      setFilteredFoodItems([...coloredCategories]); 
     } else {
       const filteredItems = coloredCategories.map((category) => {
         const matchingItems = category.items.filter((item) => {
-          const itemName = typeof item === 'object'
-            ? Object.entries(item)[0][1].join(' ')
-            : item;
-          return itemName.toLowerCase().includes(query.toLowerCase());
+          if (typeof item === 'object') {
+            // Check subcategory name and items
+            const [subcatName, subcatItems] = Object.entries(item)[0];
+            return subcatName.toLowerCase().includes(query.toLowerCase()) || 
+                   subcatItems.some(subItem => subItem.toLowerCase().includes(query.toLowerCase()));
+          } else {
+            // Regular item - check if it matches
+            return item.toLowerCase().includes(query.toLowerCase());
+          }
         });
-  
+
         // Only include the category if it has matching items
         if (matchingItems.length > 0) {
           return { ...category, items: matchingItems };
         } else {
           return null; // This will remove the category from the filtered results
         }
-      }).filter(Boolean); // Remove null entries 
-  
+      }).filter(Boolean); // Remove null entries
+
       setFilteredFoodItems(filteredItems);
     }
   };
@@ -682,7 +842,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       <TouchableOpacity
         style={[style, { backgroundColor: color }]}
         onPress={onItemPress}
-        onLongPress={onItemLongPress}
       >
         <View style={styles.itemContentContainer}> 
         <Text style={styles.item}>{typeof food === 'object' ? Object.keys(food)[0] : food}</Text>
@@ -927,7 +1086,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         style={[
           styles.bottomSheetContainer,
           {
-            height: showFormattedList ? 'auto' : 60, // Partially visible height
+            height: showFormattedList ? 'auto' : 50, // Partially visible height
             opacity: showFormattedList ? 1 : 1, // Slightly transparent when hidden 
           },
         ]}
@@ -1174,16 +1333,10 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       <QuantityModal />
       <AddModal />
       <FormattedListModal />
-      <Animated.View style={[
-        styles.floatingButtonContainer,
-        { opacity: buttonOpacity }
-      ]
-    }> 
-        <EditModal />
-        <AddButton />
-        <UndoButton /> 
-        <ShareListButton />
-      </Animated.View>
+      <EditModal />
+      <AddButton />
+      <UndoButton /> 
+      <ShareListButton />
     </View>
   );
 }
@@ -1313,6 +1466,7 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1, // Allow ScrollView to take up available space
+    paddingBottom: 80
   },
   doneButton: {
     backgroundColor: 'black',
@@ -1362,11 +1516,20 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.3)', 
   },
   AddInput: {
+    textAlign: 'center',
+    color: '#0098FF',
     paddingVertical: 7,
     paddingHorizontal: 2,
+    borderRadius: 7,
+    borderBottomRightRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderWidth: 1,
+    borderColor: '#0098FF'
   },
   AddButton: {
     backgroundColor: '#0098FF',
+    borderTopRightRadius: 0,
+    borderTopLeftRadius: 0,
     borderRadius: 7,
     padding: 7,
   },
@@ -1457,7 +1620,34 @@ const styles = StyleSheet.create({
     width: 25,
     height: 25,
     tintColor: '#FFFFFF'
-  }
+  },
+
+  // Dropdown Styles 
+  dropdown: {
+    height: 50,
+    borderColor: 'gray',
+    borderWidth: 0.5,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    marginBottom: 10, 
+  },
+  dropdownIcon: {
+    marginRight: 5,
+  },
+  placeholderStyle: {
+    fontSize: 16,
+  },
+  selectedTextStyle: {
+    fontSize: 16,
+  },
+  iconStyle: {
+    width: 20,
+    height: 20,
+  },
+  inputSearchStyle: {
+    height: 40,
+    fontSize: 16,
+  }, 
 })
 
 export default FoodList
