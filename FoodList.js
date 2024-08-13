@@ -155,6 +155,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Red Bull",
             { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
             { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
+            { "Soda Can": ["Coke", "Diet Coke", "Sprite", "Fanta"] },
             { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
           ],
           "color": "#000000"
@@ -268,9 +269,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
 
   const handleLongPressItem = (item) => {
-      // setEditingItem(item);
-      // setEditedItemName(item);
-      // setEditModalVisible(true);
+      setEditingItem(item);
+      setEditedItemName(item);
+      setEditModalVisible(true);
   };
   
   
@@ -600,7 +601,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
                 // Adding to the main category
                 const insertAt =
                   selectedInsertIndex !== null
-                    ? selectedInsertIndex
+                    ? selectedInsertIndex - 1
                     : categoryToUpdate.items.length;
                 categoryToUpdate.items.splice(insertAt, 0, newItemInput);
               }
@@ -832,8 +833,14 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const handleItemPress = (food, itemColor) => {
     const foodName = typeof food === 'object' ? Object.keys(food)[0] : food;
 
+    let displayName = foodName; 
+    // Check if the item belongs to the "Soda" subcategory
+    if (foodName.includes(' Soda')) {
+      displayName = foodName.split(' ').slice(0,-1).join(' '); // Extract only the item name
+    }
+
     setColor(itemColor); 
-    setSelectedItem(foodName);
+    setSelectedItem(displayName);
     setModalVisible(true); // Open the QuantityModal
   }; 
 
@@ -1125,7 +1132,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
         const result = await Share.share({
           message: formattedList
         });
-        setFormattedList([])
         
   
         if (result.action === Share.sharedAction) {
@@ -1166,6 +1172,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       <TouchableOpacity
         style={[styles.floatingButton, styles.undoButton]}
         onPress={handleUndo}
+        onLongPress={handleUndoLongPress}
         activeOpacity={0.7}
       >
         <Image
@@ -1177,27 +1184,44 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   };
 
   const handleUndo = () => {
-    if (Object.keys(selectedItems).length === 0) {
-      setFormattedList([])
-      // List is empty, show an alert or handle it as needed
-      Alert.alert('Empty Food List', 'There are no items to undo.');
-      return; // Exit the function early
+    if (selectedItemsHistory.length === 0) {
+      Alert.alert('Nothing to Undo', 'You haven\'t added any items yet.');
+      return;
     }
-    // Get the last added item from selectedItems
-    const lastSelectedItemKey = Object.keys(selectedItems)
-      .reduce((a, b) => (selectedItems[a] > selectedItems[b] ? a : b));
 
-    if (lastSelectedItemKey) {
-      setSelectedItems((prevItems) => {
-        // Create a copy of prevItems without modifying the original object
-        const newItems = { ...prevItems }; 
-        delete newItems[lastSelectedItemKey];
-        return newItems;
-      });
-       // Update the formatted list
-      setIsListDirty(true);
-    }
-    formatFoodList()
+    // Get the previous state from history
+    const previousState = selectedItemsHistory[selectedItemsHistory.length - 1];
+
+    // Update selectedItems with the previous state
+    setSelectedItems(previousState);
+
+    // Remove the last state from the history
+    setSelectedItemsHistory(selectedItemsHistory.slice(0, -1));
+
+    // Update the formatted list
+    setIsListDirty(true); 
+  };
+
+  const handleUndoLongPress = () => {
+    Alert.alert(
+      'Clear Food List',
+      'Are you sure you want to clear the entire food list?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Clear',
+          onPress: () => {
+            setSelectedItems({}); 
+            setSelectedItemsHistory([]);
+            setIsListDirty(true); 
+          },
+        },
+      ],
+      { cancelable: true } 
+    );
   };
 
   const formatFoodList = () => {
@@ -1252,11 +1276,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
           } else { // For non-beverage categories
             const selectedSubcategories = []; 
             for (const subcategory of subcategories) {
-              const itemName = brand === 'Soda' ? subcategory : `${subcategory} ${brand}`;
+              const itemName = `${subcategory} ${brand}`; 
               const quantity = selectedItems[itemName] || 0;
 
               if (quantity > 0) {
-                selectedSubcategories.push(`${subcategory.slice(0, 2).toUpperCase()}-${quantity}`);
+                formattedItems[brand] = formattedItems[brand] || {}; // Initialize brand object if needed
+                formattedItems[brand][subcategory] = quantity; 
               }
             }
             if (selectedSubcategories.length > 0) {
@@ -1271,6 +1296,27 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             // formattedItems[category.category] = formattedItems[category.category] || {};
             formattedItems[item] = quantity;
           }
+        }
+      }
+    }
+
+    for (const itemName in selectedItems) {
+      if (selectedItems.hasOwnProperty(itemName)) {
+        const quantity = selectedItems[itemName];
+        if (itemName.includes(' ') && quantity <= 3) {
+          // *** ONLY PROCESS BEVERAGE SUBCATEGORIES ***
+          if (itemName.includes('Gatorade') || 
+              itemName.includes('Snapple') || 
+              itemName.includes('Soda') ||
+              itemName.includes('Soda Can') ||
+              itemName.includes('Minute Maid')) { 
+            if (itemName.includes('Soda')) {
+              formattedItems[itemName.split(' ').slice(0, -1).join(' ')] = quantity;
+            } else {
+              formattedItems[itemName] = quantity;
+            }
+          }
+          // *** END OF BEVERAGE SUBCATEGORY HANDLING ***
         }
       }
     }
@@ -1296,14 +1342,14 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
  
        // Only add the brand if there are selected items
        if (hasSelectedSubcategories) {
-         formattedListArray.push(`${brandOrItem}:\n`);
+         formattedListArray.push(`${brandOrItem}:`);
  
          if (quantityData['Pack']) {
            quantityData['Pack'].forEach((packContent) => {
              const formattedPackItems = Object.entries(packContent)
                .map(([initial, qty]) => `${initial}-${qty}`)
-               .join(', ');
-             formattedListArray.push(`\t(${formattedPackItems})\n`);
+               .join('+');
+             formattedListArray.push(`\t(${formattedPackItems})-1\n`);
            });
          } else if (quantityData['compact']) {
            formattedListArray.push(`\t${quantityData['compact']}\n`); 
@@ -1311,14 +1357,14 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
            // Handle other subcategories, only if quantity > 0
            for (const [subItem, qty] of Object.entries(quantityData)) {
              if (qty > 0) {
-               formattedListArray.push(`\t${subItem}: ${qty}\n`);
+              formattedListArray.push(`\t${subItem}-${qty}\n`); // Updated format 
              }
            }
          }
        }
  
      } else if (quantityData > 0) { 
-       formattedListArray.push(`${brandOrItem}: ${quantityData}\n`); 
+        formattedListArray.push(`${brandOrItem}: ${quantityData}\n`); 
      }
    }
  
@@ -1610,7 +1656,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between', // Add some padding to the FoodItem
   },
   editButton: {
-    padding: 2,  // Add some padding to the button
+    padding: 2,
+    marginLeft: 12,// Add some padding to the button
   },
   editIcon: {
     width: 30, 
