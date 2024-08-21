@@ -19,6 +19,7 @@ import {
   Image,
   Alert,
   Animated,
+  Switch,
   TouchableWithoutFeedback
 } from 'react-native'
 
@@ -91,6 +92,7 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   // Is loading state
   const [isLoading, setIsLoading] = useState(true);
   const scrollPositionRef = useRef(0);
+  const [isTomorrowList, setIsTomorrowList] = useState(true);
 
   
   
@@ -154,23 +156,20 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Vitamin Water",
             "Red Bull",
             { "Gatorade": ["Red", "Lime", "Orange", "Blue"] },
-            { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
-            { "Soda Can": ["Coke", "Diet Coke", "Sprite", "Fanta"] },
             { "Snapple": ["Peach", "Lemon", "Kiwi", "Diet Peach", "Diet Lemon"] },
+            { "Soda": ["Coke", "Diet Coke", "Sprite", "Lemonade", "Fanta", "Pepsi", "Coke Zero", "Diet Pepsi"] },
+            { "Can": ["Coke", "Diet Coke", "Sprite", "Fanta"] },
           ],
           "color": "#000000"
         },
         {
           "category": "Ice Cream",
           "items": [
-            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B.", "Cookie Duet"] },
-            { "Häagen-Dazs": ["Almond", "Dark Chocolate", "Coffee Almond"] },
-            { "FrozFruit": ["Strawberry", "Coconut", "Mango", "Lime", "Pineapple"] },
             "Oreo Bar",
             "Klondike",
             "Strawberry Shortcake",
             "Vanilla Bar",
-            "Giant Sandwich",
+            "Giant Vanilla",
             "Chocolate Chip",
             "Cookie Sandwich",
             "Choc Éclair",
@@ -178,27 +177,11 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Birthday Cake",
             "Original",
             "Reeses",
-          ],
-          "color": "#000000"
-        },
-        {
-          "category": "Popsicle",
-          "items": [
-            "Spiderman",
-            "Spongebob",
-            "Spacejam",
-            "Sonic",
-            "Batman",
-            "Bomb Pop",
-            "Ninja Turtle",
-            "Snowcone",
-          ],
-          "color": "#000000"
-        },
-        {
-          "category": "Frozen Cup",
-          "items": [
-            { "Minute Maid": ["Lemonade", "Strawberry"] }
+            { "Popsicle": ["Spiderman","Spongebob","Spacejam","Sonic","Batman","Bomb Pop","Ninja Turtle", "Snowcone",] },
+            { "FrozFruit": ["Strawberry", "Coconut", "Mango", "Lime", "Pineapple"] },
+            { "Magnum": ["2x Choc", "Almond", "Caramel", "Peanut B.", "Cookie D."] },
+            { "Häagen-Dazs": ["Almond", "Dark C.", "Coffee A."] },
+            {"Cup": ["Lemonade", "Strawberry"]}
           ],
           "color": "#000000"
         },
@@ -223,7 +206,12 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
             "Spoons",
             "Sugar",
             "Vanillin",
-            { "Bags": ["Garbage Bags", "White Bags", "Brown Bags", "Black Bags"] }
+            "Dry Ice",
+            "Regular Ice",
+            "Garbage Bags",
+            "White Bags",
+            "Brown Bags",
+            "Black Bags"
           ],
           "color": "#000000"
         }
@@ -264,7 +252,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
     }).start();
   };
 
-  
+  const toggleListType = () => {
+    setIsTomorrowList(!isTomorrowList);
+  };
   
 
 
@@ -630,14 +620,6 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
       }
     };
 
-    // Function to handle selection of insertion index
-    const handleIndexSelect = (index) => {
-      if (selectedCategory !== filteredFoodItems[0].category) {
-        setSelectedCategory(filteredFoodItems[0].category); // Only update if necessary
-      }
-      setSelectedInsertIndex(index);
-    };
-
     return (
       <View style={{ flex: 1 }}>
         <Modal
@@ -832,15 +814,11 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
   const handleItemPress = (food, itemColor) => {
     const foodName = typeof food === 'object' ? Object.keys(food)[0] : food;
+    console.log(foodName)
 
-    let displayName = foodName; 
-    // Check if the item belongs to the "Soda" subcategory
-    if (foodName.includes(' Soda')) {
-      displayName = foodName.split(' ').slice(0,-1).join(' '); // Extract only the item name
-    }
 
     setColor(itemColor); 
-    setSelectedItem(displayName);
+    setSelectedItem(foodName);
     setModalVisible(true); // Open the QuantityModal
   }; 
 
@@ -1055,7 +1033,8 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
               <Text style={[styles.modalText]}>
                 How much{' '}
                 <Text style={[{ fontStyle: 'italic', fontWeight: 'bold', color: color}]}>
-                  {selectedItem}
+                {selectedItem}
+                
                 </Text>
                 ?
               </Text>
@@ -1089,28 +1068,41 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
   const FormattedListModal = () => {
     return (
-      <Animated.View
-        style={[
-          styles.bottomSheetContainer,
-          {
-            height: showFormattedList ? 'auto' : 50, // Partially visible height
-            opacity: showFormattedList ? 1 : 1, // Slightly transparent when hidden 
-          },
-        ]}
-      >
-        <View style={styles.modalView}>
+    <Animated.View
+      style={[
+        styles.bottomSheetContainer,
+        {
+          height: showFormattedList ? 'auto' : 50,
+          opacity: showFormattedList ? 1 : 1,
+        },
+      ]}
+    >
+      <View style={styles.modalView}>
+        <View style={styles.modalHeader}>
+          <Switch
+            value={isTomorrowList}
+            onValueChange={toggleListType}
+            trackColor={{ false: "#767577", true: "#81b0ff" }}
+            thumbColor={isTomorrowList ? "#f5dd4b" : "#f4f3f4"}
+            ios_backgroundColor="#3e3e3e"
+          />
           <TouchableOpacity onPress={toggleBottomSheet} style={styles.modalButton}>
-            <Text style={styles.modalTitle}>Today's List:</Text>
-            </TouchableOpacity>
-          {showFormattedList && ( // Conditionally render ScrollView
-            <ScrollView style={styles.modalList}>
-              <Text>{formattedList}</Text>
-            </ScrollView>
-          )}
+            <Text style={styles.modalTitle}>
+              {isTomorrowList ? "Tomorrow's List:" : "Today's List:"}
+            </Text>
+          </TouchableOpacity>
         </View>
-      </Animated.View>
-    );
-  };
+        {showFormattedList && (
+          <ScrollView style={styles.modalList}>
+            <Text>
+              {formattedList}
+            </Text>
+          </ScrollView>
+        )}
+      </View>
+    </Animated.View>
+  );
+};
 
   const toggleBottomSheet = () => {
     formatFoodList();
@@ -1128,10 +1120,20 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     
   const shareFoodList = async () => {
-      try {
-        const result = await Share.share({
-          message: formattedList
-        });
+    
+    try {
+      let message = formattedList;
+
+      // Add the header based on isTomorrowList state
+      if (isTomorrowList) {
+        message = "Tomorrow's List\n" + message;
+      } else {
+        message = "Today's List\n" + message;
+      }
+  
+      const result = await Share.share({
+        message: message,
+      });
         
   
         if (result.action === Share.sharedAction) {
@@ -1227,149 +1229,120 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
   const formatFoodList = () => {
     const formattedItems = {};
   
-    for (const category of filteredFoodItems) {
-      for (const item of category.items) {
-        if (typeof item === 'object') {
-          const [brand, subcategories] = Object.entries(item)[0];
-          formattedItems[brand] = formattedItems[brand] || {}; 
+    for (const [originalItemName, quantity] of Object.entries(selectedItems)) {
+      if (quantity > 0) {
+        const parts = originalItemName.split(' ');
+        let brand = parts.slice(-1)[0];
+        let subcategory = parts.slice(0, -1).join(' ');
+        let itemName = originalItemName;
   
-          if (category.category === 'Beverages') {
-            // ***CORRECTED PACKING LOGIC START***
-            let currentPack = {};
-            let packTotal = 0;
+        // Category Handling - Initialize correctly 
+        let categoryName = subcategory ? subcategory : brand;
+      
+        itemName = subcategory;
+        categoryName = brand; 
   
-            for (const subcategory of subcategories) {
-              const itemName = `${subcategory} ${brand}`;
-              let quantity = selectedItems[itemName] || 0;
+        // Check if it's a beverage
+        if (
+          filteredFoodItems.some(
+            (category) =>
+              category.category === 'Beverages' &&
+              category.items.some(
+                (item) =>
+                  typeof item === 'object' && Object.keys(item)[0] === categoryName 
+
+              )
+          )
+        ) {
+          // Beverage logic
+          if (quantity > 3) {
+            formattedItems[categoryName] = formattedItems[categoryName] || { Pack: [{}] };
   
-              // Only process if there's a quantity MORE THAN 3
-              if (quantity > 3) { 
-                while (quantity > 0) {
-                  const availableSpace = 24 - packTotal;
-                  const amountToAdd = Math.min(quantity, availableSpace);
+            let currentPackIndex = 0;
+            let quantityCopy = quantity;
   
-                  if (amountToAdd > 0) {
-                    const abbreviation = subcategory.split(' ').map(word => word[0].toUpperCase()).join('.'); 
-                    currentPack[abbreviation] = (currentPack[abbreviation] || 0) + amountToAdd;
-                    packTotal += amountToAdd;
-                    quantity -= amountToAdd;
-                  }
+            while (quantityCopy > 0) {
+              const currentPack = formattedItems[categoryName].Pack[currentPackIndex];
   
-                  if (packTotal === 24) {
-                    formattedItems[brand]['Pack'] = formattedItems[brand]['Pack'] || [];
-                    formattedItems[brand]['Pack'].push(currentPack);
-                    currentPack = {}
-                    packTotal = 0;
-                  }
-                }
-              } else if (quantity > 0) { // Handle quantities 1-3
-                formattedItems[brand][subcategory] = `${quantity}`; 
+              let currentPackTotal = Object.values(currentPack).reduce(
+                (sum, qty) => sum + qty,
+                0
+              );
+  
+              const availableSpace = 24 - currentPackTotal;
+              const amountToAdd = Math.min(quantityCopy, availableSpace);
+  
+              if (amountToAdd > 0) {
+                // CORRECT ABBREVIATION GENERATION
+                const abbreviation = itemName
+                  .split(' ')
+                  .filter(word => word !== "Can")
+                  .map((word) => word[0].toUpperCase())
+                  .join('.');
+  
+                currentPack[abbreviation] = (currentPack[abbreviation] || 0) + amountToAdd;
+                quantityCopy -= amountToAdd;
+              }
+  
+              if (quantityCopy > 0 && availableSpace === 0) {
+                formattedItems[categoryName].Pack.push({});
+                currentPackIndex++;
+              }
+  
+              if (quantityCopy === 0) {
+                break;
               }
             }
-  
-            if (Object.keys(currentPack).length > 0) {
-              formattedItems[brand]['Pack'] = formattedItems[brand]['Pack'] || [];
-              formattedItems[brand]['Pack'].push(currentPack);
-            }
-            // ***CORRECTED PACKING LOGIC END***
-  
-          } else { // For non-beverage categories
-            const selectedSubcategories = []; 
-            for (const subcategory of subcategories) {
-              const itemName = `${subcategory} ${brand}`; 
-              const quantity = selectedItems[itemName] || 0;
-
-              if (quantity > 0) {
-                formattedItems[brand] = formattedItems[brand] || {}; // Initialize brand object if needed
-                formattedItems[brand][subcategory] = quantity; 
-              }
-            }
-            if (selectedSubcategories.length > 0) {
-              formattedItems[brand] = { // Store as an object with a special key
-                'compact': `(${selectedSubcategories.join(', ')})` 
-              };
-            }
+          } else {
+            formattedItems[originalItemName] = quantity;
           }
-        } else { // For non-subcategory items
-          const quantity = selectedItems[item] || 0;
-          if (quantity > 0) {
-            // formattedItems[category.category] = formattedItems[category.category] || {};
-            formattedItems[item] = quantity;
-          }
-        }
-      }
-    }
-
-    for (const itemName in selectedItems) {
-      if (selectedItems.hasOwnProperty(itemName)) {
-        const quantity = selectedItems[itemName];
-        if (itemName.includes(' ') && quantity <= 3) {
-          // *** ONLY PROCESS BEVERAGE SUBCATEGORIES ***
-          if (itemName.includes('Gatorade') || 
-              itemName.includes('Snapple') || 
-              itemName.includes('Soda') ||
-              itemName.includes('Soda Can') ||
-              itemName.includes('Minute Maid')) { 
-            if (itemName.includes('Soda')) {
-              formattedItems[itemName.split(' ').slice(0, -1).join(' ')] = quantity;
-            } else {
-              formattedItems[itemName] = quantity;
-            }
-          }
-          // *** END OF BEVERAGE SUBCATEGORY HANDLING ***
+        } else if (categoryName === "FrozFruit") {
+          formattedItems[`${brand} ${subcategory}`] = quantity
+        } 
+        else {
+          // Non-beverage logic
+          formattedItems[originalItemName] = quantity;
         }
       }
     }
   
-   // Format the output list (without category headers)
-   let formattedListArray = [];
-
-   for (const [brandOrItem, quantityData] of Object.entries(formattedItems)) {
-     if (typeof quantityData === 'object') { 
-       let hasSelectedSubcategories = false;
- 
-       // Check for selected items in different formats
-       if (quantityData['Pack'] && quantityData['Pack'].length > 0) {
-         hasSelectedSubcategories = true; // It has a pack with items
-       } else if (quantityData['compact']) {
-         hasSelectedSubcategories = true; // It's in compact format
-       } else {
-         // Check within nested subcategories
-         hasSelectedSubcategories = Object.values(quantityData).some((subCategoryData) => {
-           return typeof subCategoryData === 'number' && subCategoryData > 0;
-         });
-       }
- 
-       // Only add the brand if there are selected items
-       if (hasSelectedSubcategories) {
-         formattedListArray.push(`${brandOrItem}:`);
- 
-         if (quantityData['Pack']) {
-           quantityData['Pack'].forEach((packContent) => {
-             const formattedPackItems = Object.entries(packContent)
-               .map(([initial, qty]) => `${initial}-${qty}`)
-               .join('+');
-             formattedListArray.push(`\t(${formattedPackItems})-1\n`);
-           });
-         } else if (quantityData['compact']) {
-           formattedListArray.push(`\t${quantityData['compact']}\n`); 
-         } else {
-           // Handle other subcategories, only if quantity > 0
-           for (const [subItem, qty] of Object.entries(quantityData)) {
-             if (qty > 0) {
-              formattedListArray.push(`\t${subItem}-${qty}\n`); // Updated format 
-             }
-           }
-         }
-       }
- 
-     } else if (quantityData > 0) { 
-        formattedListArray.push(`${brandOrItem}: ${quantityData}\n`); 
-     }
-   }
- 
-   setFormattedList(formattedListArray.join(''));
+    // Format the output list
+    let formattedListArray = [];
+    for (const [brandOrItem, quantityData] of Object.entries(formattedItems)) {
+      if (typeof quantityData === 'object' && quantityData.Pack) {
+        formattedListArray.push(`${brandOrItem}:`);
+  
+        let packString = "";
+        quantityData.Pack.forEach((packContent, index) => {
+          const formattedPackItems = Object.entries(packContent)
+            .filter(([initial, qty]) => qty > 0)
+            .map(([initial, qty]) => `${initial}-${qty}`)
+            .join('+');
+  
+          if (formattedPackItems !== "") {
+            packString += `(${formattedPackItems})-1`;
+            if (index < quantityData.Pack.length - 1) {
+              packString += "\n";
+            }
+          }
+        });
+  
+        if (packString !== "") {
+          formattedListArray.push(`\n${packString}`);
+        }
+        formattedListArray.push('\n'); // This ensures a new line for the next item
+      } else {
+        formattedListArray.push(`${brandOrItem}-${quantityData}\n`);
+      }
+    }
+  
+    setFormattedList(formattedListArray.join(''));
+    return formattedListArray.join('');
   };
+  
+  
+  
+  
   
 
   return (
@@ -1555,6 +1528,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#0098FF'
   },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingBottom: 10,
+    
+  },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1653,7 +1633,8 @@ const styles = StyleSheet.create({
   itemContentContainer: {
     flexDirection: 'row',
     alignItems: 'center', 
-    justifyContent: 'space-between', // Add some padding to the FoodItem
+    justifyContent: 'space-between',
+    // Add some padding to the FoodItem
   },
   editButton: {
     padding: 2,
