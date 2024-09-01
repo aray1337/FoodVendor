@@ -6,7 +6,7 @@ The **Food Vendor Resources App** is designed to assist food vendors in planning
 
 1. **Item Selection and Inventory Management**:
    - [x] Browse a categorized list of food items.
-   - [ ] Add items to your daily plan for the next day.
+   - [x] Add items to your daily plan for the next day.
    - [ ] Keep track of your current inventory levels.
 
 2. **Daily Planning and Forecasting**:
