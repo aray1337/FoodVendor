@@ -2,6 +2,13 @@
 
 The **Food Vendor Resources App** is designed to assist food vendors in planning their merchandice for the next day. Whether you're a street food vendor, a market stall owner, or a food truck operator, this app streamlines the process of selecting items and making informed decisions.
 
+
+https://github.com/user-attachments/assets/325d3eda-0aa4-4c8e-8561-66bb82849fe2
+
+https://github.com/user-attachments/assets/19c36149-6066-474d-be1b-6d1577553cc2
+
+
+
 ## Features
 
 1. **Item Selection and Inventory Management**:
@@ -26,6 +33,3 @@ The **Food Vendor Resources App** is designed to assist food vendors in planning
 1. **Installation**:
    - Clone this repository to your local machine.
 
-3. **Usage**:
-   - Run the app through expo.
-   - Access the app through your preferred web browser or mobile device.
