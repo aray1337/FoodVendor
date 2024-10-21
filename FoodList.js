@@ -4,6 +4,8 @@ import SearchBar from './SearchBar';
 import AntDesign from '@expo/vector-icons/AntDesign';
 import React, { useState, useEffect, useRef } from 'react'
 import { Dropdown } from 'react-native-element-dropdown';
+import { InterstitialAd, TestIds, AdEventType } from 'react-native-google-mobile-ads';
+
 
 
 import {
@@ -46,7 +48,7 @@ function getColor() {
 //     // Add more categories and items
 // ];
 
-const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
+const FoodList = ({ filteredFoodItems, setFilteredFoodItems, showInterstitialAd}) => {
   //react variables
 
   // Modal visibility state
@@ -1120,8 +1122,9 @@ const FoodList = ({ filteredFoodItems, setFilteredFoodItems}) => {
 
     
   const shareFoodList = async () => {
-    
+      console.log("showInterstitialAd:", showInterstitialAd); // Is it a function?
     try {
+      await showInterstitialAd();
       let message = formattedList;
 
       // Add the header based on isTomorrowList state

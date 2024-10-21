@@ -4,14 +4,16 @@
   "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "dev:build:ios": "eas build --profile development --platform ios",
+    "dev:build:android": "eas build --profile development --platform android"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~3.2.1",
+    "@expo/metro-runtime": "~3.2.3",
     "@react-native-async-storage/async-storage": "^1.23.1",
-    "expo": "^51.0.26",
+    "expo": "~51.0.38",
     "expo-status-bar": "~1.12.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -19,8 +21,10 @@
     "react-native-draggable-flatlist": "^4.0.1",
     "react-native-element-dropdown": "^2.12.1",
     "react-native-gesture-handler": "~2.16.1",
+    "react-native-google-mobile-ads": "^14.2.5",
     "react-native-storage": "^0.2.4",
-    "react-native-web": "~0.19.10"
+    "react-native-web": "~0.19.10",
+    "expo-dev-client": "~4.0.28"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"
